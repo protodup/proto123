@@ -1,6 +1,6 @@
 # Development Guide
 
-This guide covers setting up a local environment, building the WebAssembly app and headless CLI, running fast test loops, validating ODF 1.3 (`.ods`) conformance, and running the multi-stage Docker container for **Classic123** (`rusted-classic-123`).
+This guide covers setting up a local environment, building the WebAssembly app, the native terminal app, and the headless CLI, running fast test loops, validating ODF 1.3 (`.ods`) conformance, and running the multi-stage Docker container for **Classic123** (`rusted-classic-123`).
 
 ---
 
@@ -9,12 +9,12 @@ This guide covers setting up a local environment, building the WebAssembly app a
 - **Rust toolchain:** `rust-toolchain.toml` pins the exact Rust release used by CI, and `rustup` installs it together with the `wasm32-unknown-unknown` target automatically on first use. (`rust-version` in root `Cargo.toml` records the oldest supported MSRV.)
 - **WebAssembly tooling:**
   - [`trunk`](https://trunkrs.dev/) (`cargo install --locked trunk`) for local WASM dev serving and static bundling (or `wasm-pack` if building the raw JS/WASM package directly).
-  - `wasm-opt` (from [Binaryen](https://github.com/WebAssembly/binaryen)) to enforce the `.wasm` release size budget.
+  - `wasm-opt` (from [Binaryen](https://github.com/WebAssembly/binaryen)) to optimize the release `.wasm` (its compressed size is measured on every release build).
 - **Optional recommended tools:**
   - [`cargo-nextest`](https://nexte.st/) (`cargo install --locked cargo-nextest`) for parallel test execution.
   - **Docker** (Engine or Desktop) for testing the production static container and MIME-type configuration.
   - **LibreOffice (`soffice`)** *(optional)* for cross-checking generated `.ods` files against an external ODF 1.3 implementation during local verification.
-- **No native GUI/GPU libraries required:** Unlike desktop GUI apps, `rusted-classic-123` requires **no** GTK, Wayland, X11, OpenGL, or Vulkan system packages on Linux, macOS, or Windows. Everything runs in pure Rust (CLI/tests) or inside the browser's `<canvas>` via WASM.
+- **No native GUI/GPU libraries required:** Unlike desktop GUI apps, `rusted-classic-123` requires **no** GTK, Wayland, X11, OpenGL, or Vulkan system packages on Linux, macOS, or Windows. The native terminal app uses crossterm (pure Rust) and runs in any terminal; the web app runs inside the browser's `<canvas>` via WASM.
 
 ### Windows Source Builds
 
@@ -26,7 +26,21 @@ On Windows 11, **Smart App Control** can occasionally block `cargo`, `rustc`, or
 
 ## Build and Run
 
-### 1. Local Web App (Browser TUI on Canvas)
+### 1. Native Terminal App (`classic123-term`)
+
+Run the TUI directly in your terminal (Linux, macOS, Windows Terminal, or WSL):
+
+```sh
+cargo run -p classic123-term                                   # empty workbook
+cargo run -p classic123-term -- corpus/valid/basic_formulas.ods # open a local .ods/.xlsx/.csv file
+cargo run -p classic123-term -- https://example.com/budget.ods  # load over HTTP(S)
+```
+
+- **Mouse:** the app enables terminal mouse reporting on start (click, double-click, drag, wheel, hover). Most modern terminals support it; inside `tmux` enable `set -g mouse on`. Over SSH or in terminals without mouse reporting, keyboard operation stays complete.
+- **Saving:** `Ctrl+S` / `/File/Save ODS` writes `.ods` to the local filesystem.
+- If the app exits abnormally and leaves the terminal in a strange state, run `reset`.
+
+### 2. Local Web App (Browser TUI on Canvas)
 
 Serve the WASM app locally with hot-reload:
 
@@ -44,12 +58,12 @@ To build the optimized production static bundle (`dist/`):
 
 ```sh
 trunk build --release
-cargo xtask wasm          # verifies wasm32 build, runs wasm-opt -Oz, and checks binary size budget
+cargo xtask wasm          # verifies wasm32 build, runs wasm-opt -Oz, and reports compressed .wasm size
 ```
 
-### 2. Headless CLI (`classic123-cli`)
+### 3. Headless CLI (`classic123-cli`)
 
-Every engine operation is accessible without a browser:
+Every engine operation is accessible without a browser or terminal UI:
 
 ```sh
 # Inspect structure, sheets, formula counts, and ODF 1.3 diagnostics
@@ -58,13 +72,16 @@ cargo run --release -p classic123-cli -- inspect corpus/valid/basic_formulas.ods
 # Recalculate DAG and write a fresh ODF 1.3 compliant .ods
 cargo run --release -p classic123-cli -- recalc input.ods -o output.ods
 
+# Import .xlsx or .csv and write .ods (the only output format)
+cargo run --release -p classic123-cli -- convert input.xlsx -o output.ods
+
 # Execute scripted commands in sandboxed automation mode (enforces root boundaries)
 cargo run --release -p classic123-cli -- exec script.json \
   --read-root ./work/in \
   --write-root ./work/out
 ```
 
-### 3. Docker Execution (Local & Production Parity)
+### 4. Docker Execution (Web Target)
 
 Build and run the multi-stage container (compiles Rust -> WASM + `wasm-opt` in the builder stage, serves static assets from a minimal server in the runtime stage):
 
@@ -101,7 +118,8 @@ cargo xtask ci                    # full CI gate: fmt, clippy, layers, menu-comm
 cargo xtask ci lint               # fast lint leg (fmt, clippy, layers, menu-commands) with no test binaries
 cargo xtask layers                # verify L0-L6 unidirectional dependency graph (xtask/src/layers.rs)
 cargo xtask menu-commands         # verify every '/' menu entry resolves to a live CommandId
-cargo xtask wasm                  # compile wasm32-unknown-unknown + enforce .wasm size budget
+cargo xtask wasm                  # compile wasm32-unknown-unknown + wasm-opt + report compressed .wasm size
+cargo build -p classic123-term    # build the native terminal target
 cargo xtask ods-conformance       # validate ODF 1.3 ZIP/XML/OpenFormula round-trips across corpus/
 cargo xtask parity                # regenerate docs/parity-checklist.md (Keyboard / Mouse / CLI coverage)
 cargo xtask docker-check          # verify multi-stage Dockerfile and WASM/ODS MIME types
@@ -154,13 +172,13 @@ Nextest's `SLOW` notice at 60 seconds is an informational progress marker, not a
 
 ## Headless Testing of TUI Layout & Mouse Hit-Testing
 
-Because `classic123-tui` renders to a pure-Rust `CellBuffer` and emits a deterministic `LayoutMap` from `CellMetrics`, you can verify **keyboard navigation, `/` menus, mouse clicks, double-clicks, drag-range selection, scroll wheel behavior, and hover highlights** without launching a browser:
+Because `classic123-tui` renders Ratatui widgets into an in-memory buffer (Ratatui `TestBackend`) and emits a deterministic `LayoutMap`, you can verify **keyboard navigation, `/` menus, mouse clicks, double-clicks, drag-range selection, wheel behavior, and hover highlights** for both targets without launching a browser or terminal. Web pixel input is tested through `pixel_to_cell`; native input is tested by feeding synthetic crossterm-style mouse events (already in cell units) to the same `InputMapper`:
 
 ```sh
 cargo test -p classic123-tui --lib --tests
 ```
 
-To visually inspect a rendered frame (e.g., checking box-drawing borders, active range highlighting, or menu hover states) without starting a browser, set `CLASSIC123_TUI_SNAPSHOTS` to a temporary directory when running snapshot-capable TUI tests:
+To visually inspect a rendered frame (e.g., checking box-drawing borders, active range highlighting, or menu hover states) without starting a browser or terminal, set `CLASSIC123_TUI_SNAPSHOTS` to a temporary directory when running snapshot-capable TUI tests:
 
 ```sh
 (
@@ -175,13 +193,13 @@ Inspect the generated ASCII/ANSI or rendered frame dumps in `$snap_dir` and remo
 
 ---
 
-## Fonts and WASM Binary Budget
+## Fonts and WASM Binary Size
 
-Monospace fonts for the Canvas TUI are **never embedded inside the `.wasm` binary**. Embedding even a single Unicode monospace typeface bloats the `.wasm` payload by hundreds of kilobytes to several megabytes and defeats our zero-overhead cold-start budget.
+The native terminal uses the terminal's own font; this section applies to the web target only. Monospace fonts for the Canvas TUI are **never embedded inside the `.wasm` binary**. Embedding even a single Unicode monospace typeface bloats the `.wasm` payload by hundreds of kilobytes to several megabytes and defeats our zero-overhead cold-start budget.
 
 Instead:
 - `web/fonts/` (or static assets served beside `index.html`) hosts an optional permissively licensed monospace `.woff2` font (e.g., SIL OFL-1.1 / MIT / Apache-2.0) loaded asynchronously by the browser via CSS `@font-face` / `document.fonts`, with an immediate fallback to the OS `monospace` font so the Canvas renders on frame 1 with zero blocking.
-- `classic123-tui` measures actual glyph `CellMetrics { char_width, char_height, dpr }` dynamically whenever the font loads or the window resizes, automatically recalculating both `CellBuffer` dimensions and mouse hit-test targets.
+- The web target measures actual glyph `CellMetrics { char_width, char_height, dpr }` whenever the font loads or the window resizes, and `classic123-tui` recalculates both the grid dimensions and the pixel → cell mouse mapping from them.
 - Any bundled font file MUST have its source and license (`OFL.txt` / `LICENSE`) recorded in `ATTRIBUTION.md`.
 
 ---
@@ -190,7 +208,7 @@ Instead:
 
 `corpus/` stores clean-room `.ods` fixtures and hostile-input archives:
 
-- `corpus/valid/` — minimal, formula-heavy, multi-sheet, date/currency, and repeated-column/row `.ods` files created clean-room.
+- `corpus/valid/` — minimal, formula-heavy, multi-sheet, date/currency, and repeated-column/row `.ods` files, plus `.xlsx`/`.csv` import fixtures, all created clean-room.
 - `corpus/hostile/` — truncated ZIPs, wrong `mimetype` compression/order, cyclic references, extreme coordinates, and invalid UTF-8/XML inputs used by panic sweeps.
 
 Run the conformance suite:
@@ -199,7 +217,7 @@ Run the conformance suite:
 cargo xtask ods-conformance
 ```
 
-If **LibreOffice** is installed locally, you can perform an extra external sanity check on any `.ods` file generated by `classic123-cli` or exported from the browser:
+If **LibreOffice** is installed locally, you can perform an extra external sanity check on any `.ods` file generated by `classic123-cli`, saved by `classic123-term`, or exported from the browser:
 
 ```sh
 soffice --headless --convert-to csv --outdir /tmp output.ods
@@ -214,7 +232,7 @@ Every fixture added to `corpus/` MUST be original work or permissively licensed 
 When implementing a feature or fix using **GitHub Spec Kit**:
 
 1. Check `.specify/memory/constitution.md`, `AGENTS.md`, and the active spec/tasks under `.specify/specs/`.
-2. Implement changes respecting `L0`–`L6` boundaries (`cargo xtask layers`) and zero-DOM / keyboard+mouse parity.
+2. Implement changes respecting `L0`–`L6` boundaries (`cargo xtask layers`), zero-DOM, keyboard + mouse parity, and identical behavior on the web and native targets.
 3. Add targeted behavioral/invariant tests (and regression inputs in `corpus/hostile/` for any crash/panic fix).
 4. Run the relevant gate checks before opening a PR:
 
@@ -222,6 +240,7 @@ When implementing a feature or fix using **GitHub Spec Kit**:
 cargo xtask ci lint
 cargo test -p <modified-crate>
 cargo xtask wasm
+cargo build -p classic123-term
 cargo xtask ods-conformance
 ```
 

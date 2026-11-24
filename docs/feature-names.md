@@ -56,7 +56,7 @@ The top-right mode badge MUST use these exact uppercase tokens (and mirror them 
 
 Top-level entries in `menu_catalog.rs` SHOULD stay concise (one word, unique first letter for single-key access, and full mouse hover/click targets):
 
-- `File` — New, Open, Fetch URL, Save ODS, Push Server, Export CSV, Validate ODF
+- `File` — New, Open, Fetch URL, Save ODS, Push Server, Validate ODF
 - `Edit` — Undo, Redo, Copy, Cut, Paste
 - `Range` — Erase, Format, Label, Sort, Goto
 - `Worksheet` — Insert, Delete, Column, Sheet, Titles, Recalc

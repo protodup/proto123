@@ -1,10 +1,12 @@
 # Classic123 ODF 1.3 Conformance Specification
 
 > **Standard Target:** OASIS OpenDocument Format (ODF) 1.3 / ISO/IEC 26300 (Parts 2, 3, and 4 — Packages, OpenDocument Schema, and Recalculated Formula / OpenFormula)
-> **Owning Crates:** `classic123-ods` (L3), `classic123-formula` (L1), `classic123-value` (L0)
+> **Owning Crates:** `classic123-ods` (L3), `classic123-xlsx` and `classic123-csv` (L3, import only), `classic123-formula` (L1), `classic123-value` (L0)
 > **Automated Gate:** `cargo xtask ods-conformance`
 
 This document defines the exact structural, XML, OpenFormula, and security invariants that **Classic123** (`rusted-classic-123`) MUST uphold so every generated `.ods` file opens cleanly without repair prompts, formula loss, or semantic drift in LibreOffice Calc, Collabora, and other ODF-compliant suites.
+
+**Output is always `.ods`.** `.xlsx` and `.csv` are accepted as input only (see Section 9); Classic123 never writes them.
 
 ---
 
@@ -125,7 +127,7 @@ When loading an existing `.ods` and saving it back:
 
 ## 7. Hostile-Input & Safety Guards (Zero-Panic Policy)
 
-Because `classic123-ods` runs directly on untrusted remote URLs and local user files inside WebAssembly:
+Because `classic123-ods` runs directly on untrusted remote URLs and local user files, inside WebAssembly and in the native terminal app:
 
 - **Decompression Bomb Limit:** Enforce a strict maximum uncompressed byte budget per XML entry and per archive (configurable, default 64 MiB for browser WASM).
 - **XML Depth & Entity Guards:** Reject deeply nested XML (default max depth 128) and forbid external DTD/XXE expansion (`quick-xml` does not expand external entities).
@@ -142,3 +144,13 @@ Every PR touching `classic123-ods`, `classic123-formula`, or `classic123-value` 
 2. **XML & Namespace Validator:** Confirms well-formed XML, `office:version="1.3"`, and valid `of:=` formula prefixes.
 3. **Round-Trip Invariant Suite (`corpus/valid/`):** `Workbook -> write_ods -> read_ods -> recalc` matches all cell values, types, and canonical formulas.
 4. **Hostile Corpus Sweep (`corpus/hostile/`):** Truncated ZIPs, compressed `mimetype`, wrong entry order, cyclic formulas, and extreme repeated-row counts fail cleanly with zero panics.
+5. **Import Round-Trip:** `.xlsx`/`.csv` fixtures in `corpus/valid/` import, save as `.ods`, re-read, and recalculate with matching values, types, and sheets.
+
+---
+
+## 9. Import-Only Formats (`.xlsx`, `.csv`)
+
+- **`.xlsx` (`classic123-xlsx`):** Reads sheets, typed values (number, string, boolean, date), and formulas, translating formulas to the canonical AST so they save as OpenFormula. A formula that cannot be translated keeps its cached value and raises an explicit import diagnostic—never a silent substitution.
+- **`.csv` (`classic123-csv`):** Reads RFC 4180 CSV/TSV into the active or a new sheet, with delimiter and encoding guards.
+- **Same safety guards:** zip-bomb limits, XML depth limits, coordinate bounds, and typed errors apply to `.xlsx` exactly as to `.ods`.
+- **Saving:** an imported workbook is always saved as ODF 1.3 `.ods`.

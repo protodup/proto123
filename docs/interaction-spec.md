@@ -1,15 +1,15 @@
 # Classic123 TUI & Hybrid Input Interaction Specification
 
-> **Owning Crates:** `classic123-engine` (L4), `classic123-tui` (L5), `apps/classic123-wasm` (L6)
-> **Principles:** Zero DOM per cell · Keyboard-First Speed · First-Class Mouse Support · Accessibility Without Cell DOM
+> **Owning Crates:** `classic123-engine` (L4), `classic123-tui` (L5), `apps/classic123-wasm` and `apps/classic123-term` (L6)
+> **Principles:** Zero DOM per cell · Keyboard-First Speed · First-Class Mouse Support · Same Behavior on Web and Native · Accessibility Without Cell DOM
 
-This document defines the exact visual layout, mode transitions, keyboard shortcuts, Slash Command Bar (`/`) tree, and mouse hit-testing behavior for **Classic123**. All interactions dispatch typed `CommandId`s defined in [`docs/parity-checklist.md`](parity-checklist.md).
+This document defines the exact visual layout, mode transitions, keyboard shortcuts, Slash Command Bar (`/`) tree, and mouse hit-testing behavior for **Classic123**. Everything here applies identically to the **web target** (single `<canvas>`) and the **native terminal target**, unless a difference is explicitly listed. All interactions dispatch typed `CommandId`s defined in [`docs/parity-checklist.md`](parity-checklist.md).
 
 ---
 
 ## 1. Viewport Anatomy (80×24 Minimum Baseline)
 
-Classic123 divides the single `<canvas>` character grid `(cols, rows)` into four fixed bands derived from `CellMetrics { char_width, char_height, dpr }`:
+Classic123 divides the character grid `(cols, rows)`—the `<canvas>` grid derived from `CellMetrics { char_width, char_height, dpr }` on the web, or the terminal size on native—into four fixed bands:
 
 ```text
 Row 0:  [A1] (G) =SUM(B1:B10)                                            [READY]
@@ -61,13 +61,13 @@ Every keystroke and pointer event is interpreted deterministically according to 
 3. **`READY` -> `EDIT`:** Pressing `F2`, double-clicking a cell, or clicking the formula bar edits the existing raw content in place.
 4. **`VALUE` / `EDIT` -> `POINT`:** When the edit buffer starts with `=` (or `@`) and the cursor immediately follows an operator, `(`, `,`, `;`, or `:`, pressing an arrow key or clicking/dragging on the grid switches to `POINT` mode and inserts/updates a live reference (`B2` or `B2:D5`). Typing another operator returns to `VALUE`/`EDIT` while keeping the reference.
 5. **`MENU`:** Pressing `/` or clicking any top-level menu item activates `MENU`. `Esc` steps back one submenu level (or returns to `READY` from root). Clicking outside the menu area dismisses `MENU` cleanly.
-6. **`DIALOG`:** Modal terminal overlay centered on the Canvas for prompts (e.g., *Fetch Remote URL*, *Save Filename*, *Rename Sheet*, *Confirm Clear*). `Enter` submits, `Esc` cancels, and mouse clicks work on input fields and `[OK]` / `[Cancel]` buttons.
+6. **`DIALOG`:** Modal TUI overlay centered on the screen for prompts (e.g., *Fetch Remote URL*, *Open File*, *Save Filename*, *Rename Sheet*, *Confirm Clear*). `Enter` submits, `Esc` cancels, and mouse clicks work on input fields and `[OK]` / `[Cancel]` buttons.
 
 ---
 
 ## 3. Keyboard Interaction Contract
 
-Every feature MUST be 100% reachable by keyboard with zero focus traps:
+Every feature MUST be 100% reachable by keyboard with zero focus traps, on both targets. Where a terminal or browser reserves a key (e.g., some terminals swallow `Ctrl+PgUp`, browsers reserve `Ctrl+W`), the same command MUST stay reachable through the `/` menu.
 
 | Context | Key(s) | Action / CommandId |
 |---|---|---|
@@ -101,7 +101,11 @@ Every feature MUST be 100% reachable by keyboard with zero focus traps:
 
 ## 4. First-Class Mouse Interaction Contract (`LayoutMap`)
 
-`classic123-tui` builds a `LayoutMap` during every layout pass from the exact `CellMetrics` used to draw the frame. Hit-testing translates browser pixel coordinates `(x, y)` (scaled by `devicePixelRatio`) directly to semantic `HitTarget` variants—eliminating coordinate drift on resize or font change.
+`classic123-tui` builds a `LayoutMap` (TUI cell rects → semantic `HitTarget`) during every layout pass, from the same layout that draws the frame—eliminating coordinate drift on resize or font change. Input reaches it in TUI cell units on both targets:
+
+- **Web:** browser pixel coordinates `(x, y)` (scaled by `devicePixelRatio`) are converted by `classic123-tui::pixel_to_cell` using the current `CellMetrics`.
+- **Native terminal:** `apps/classic123-term` enables mouse capture on start (SGR extended mouse reporting with press, release, drag, motion, and wheel events). The terminal already reports TUI cell coordinates. Inside `tmux`/`screen`, mouse passthrough must be enabled by the user; where the terminal reports no mouse events, keyboard operation stays complete.
+- **Gestures are derived in the shared core:** browsers and terminals both deliver raw presses, so `InputMapper` derives double-click (same cell within the double-click interval), drag, and hover from timestamped raw events. Both targets therefore behave identically and share the same tests.
 
 ### 4.1 Grid Mouse Controls
 - **Single Click on Cell:**
@@ -115,11 +119,11 @@ Every feature MUST be 100% reachable by keyboard with zero focus traps:
   - In `POINT`: continuously updates the live range reference (e.g., `B2:E9`) inside the formula bar.
 - **Mouse Wheel:**
   - Vertical wheel: scrolls rows (`view.scroll(0, dy)`, default 3 rows per notch).
-  - Horizontal trackpad gesture or `Shift + Wheel`: scrolls columns (`view.scroll(dx, 0)`).
+  - Horizontal trackpad gesture, tilt wheel, or `Shift + Wheel`: scrolls columns (`view.scroll(dx, 0)`).
 - **Column & Row Headers:**
   - Click column letter (`A`, `B`, ...) -> `nav.selectColumn(col)`.
   - Click row number (`1`, `2`, ...) -> `nav.selectRow(row)`.
-  - Hover over the vertical border between two column headers -> web host switches cursor to `col-resize`; click-and-drag resizes width in character columns (`sheet.resizeColumn`), with live preview.
+  - Hover over the vertical border between two column headers -> the divider is highlighted in the TUI (and on the web the host also switches the cursor to `col-resize`); click-and-drag resizes width in character columns (`sheet.resizeColumn`), with live preview.
 
 ### 4.2 Slash Command Bar & Dialog Mouse Controls
 - **Hover on Menu Item:** Immediately highlights the hovered item and updates Row 2 with its description or submenu preview (`hover_menu_item`).
@@ -142,11 +146,10 @@ All labels follow [`docs/feature-names.md`](feature-names.md), use unique single
 
 - **`File`**
   - `New` (`file.newWorkbook`)
-  - `Open` (`file.openLocal`)
-  - `Fetch URL` (`file.fetchRemote`)
+  - `Open` (`file.openLocal`) — `.ods`, `.xlsx`, or `.csv`
+  - `Fetch URL` (`file.fetchRemote`) — `.ods`, `.xlsx`, or `.csv`
   - `Save ODS` (`file.saveOds`)
   - `Push Server` (`file.pushRemote`)
-  - `Export CSV` (`file.exportCsv`)
   - `Validate ODF` (`calc.validateOds`)
 - **`Edit`**
   - `Undo` (`edit.undo`)
@@ -177,6 +180,7 @@ All labels follow [`docs/feature-names.md`](feature-names.md), use unique single
 
 ## 6. Clipboard & Accessibility Guarantees
 
-- **Clipboard Interop:** `Ctrl+C` / `Ctrl+X` copies internal cell/formula payloads (preserving relative reference shifting inside Classic123) while also writing RFC-compliant TSV to the browser clipboard so pasting into external editors works seamlessly. Pasting external TSV/CSV parses cleanly into the target range.
+- **Clipboard Interop:** `Ctrl+C` / `Ctrl+X` copies internal cell/formula payloads (preserving relative reference shifting inside Classic123). On the web it also writes RFC-compliant TSV to the browser clipboard; on native it writes TSV to the system clipboard through the terminal (OSC 52) where the terminal supports it, and the internal clipboard always works. Pasting external TSV/CSV (browser paste or terminal bracketed paste) parses cleanly into the target range.
 - **High Contrast & Non-Color Cues:** Default TUI themes maintain at least **4.5:1** text contrast and **3:1** border/focus contrast. Active cell, selection range, hovered menu item, and error states always include explicit structural cues (inverted background, brackets, mode badge, error token)—never color alone.
-- **Screen Reader Bridge (Zero Cell DOM):** A single hidden `<div aria-live="polite" class="sr-only">` in `web/index.html` receives concise status updates from WASM on cell move, mode switch, menu highlight, and error notification (e.g., `"C4, formula =SUM(C1:C3), value 150, READY"`).
+- **Native terminal:** Mode badge, active cell, value, and status messages are plain text in the control line and status bar, so terminal screen readers can read them; a monochrome/ASCII theme covers limited terminals.
+- **Screen Reader Bridge (web, Zero Cell DOM):** A single hidden `<div aria-live="polite" class="sr-only">` in `web/index.html` receives concise status updates from WASM on cell move, mode switch, menu highlight, and error notification (e.g., `"C4, formula =SUM(C1:C3), value 150, READY"`).

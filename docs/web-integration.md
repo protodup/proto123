@@ -1,6 +1,8 @@
 # Web Integration & Self-Hosting Guide
 
-This guide explains how to deploy **Classic123** (`rusted-classic-123`) on a personal static website or via Docker, load `.ods` / `.csv` files directly from your server, configure required HTTP MIME types, and optionally persist edits back to your server.
+This guide explains how to deploy the **web target** of **Classic123** (`rusted-classic-123`) on a personal static website or via Docker, load `.ods` / `.xlsx` / `.csv` files directly from your server, configure required HTTP MIME types, and optionally persist edits back to your server.
+
+> The native terminal app (`classic123-term`) needs no web server: it opens local files or HTTP(S) URLs directly and saves to the local filesystem. See [`docs/development.md`](development.md).
 
 ---
 
@@ -12,7 +14,7 @@ Building the web application (`trunk build --release`) produces a self-contained
 dist/
 ├─ index.html                     # Minimal host page (<canvas> + single ARIA live region)
 ├─ classic123_wasm.js             # Thin wasm-bindgen loader & input forwarder
-├─ classic123_wasm_bg.wasm        # Optimized Rust engine + TUI + ODF 1.3 codec
+├─ classic123_wasm_bg.wasm        # Optimized Rust engine + Ratatui/Ratzilla TUI + ODF 1.3 codec + .xlsx/.csv importers
 ├─ style.css                      # Minimal fullscreen canvas reset & focus ring
 └─ fonts/                         # Optional static .woff2 monospace font (never inside .wasm)
 ```
@@ -34,7 +36,7 @@ https://yoursite.example/sheets/?file=/data/budget-2026.ods
 On startup, the thin web host:
 1. Instantiates `classic123_wasm_bg.wasm` via `WebAssembly.instantiateStreaming`.
 2. Executes `fetch(fileUrl)` -> `response.arrayBuffer()` -> `new Uint8Array(buffer)`.
-3. Passes the bytes straight into `classic123_wasm::load_ods_bytes(bytes)` (or `load_csv_bytes` for `.csv`), recalculates the DAG, and renders frame 1 on the `<canvas>`.
+3. Passes the bytes straight into `classic123_wasm::load_bytes(bytes, name)`, where Rust detects `.ods`, `.xlsx`, or `.csv`, recalculates the DAG, and renders frame 1 on the `<canvas>`. A failed fetch or unreadable file is reported in the status bar and never replaces the current workbook.
 
 ### Option B — JavaScript Configuration Hook (`window.CLASSIC123_CONFIG`)
 
@@ -83,6 +85,8 @@ To enable streaming WebAssembly compilation (instant startup) and clean `.ods` d
 |---|---|---|
 | `.wasm` | `application/wasm` | Required by `WebAssembly.instantiateStreaming()` |
 | `.ods` | `application/vnd.oasis.opendocument.spreadsheet` | Standard OASIS ODF 1.3 MIME type |
+| `.xlsx` | `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` | Only if you serve `.xlsx` files for import |
+| `.csv` | `text/csv` | Only if you serve `.csv` files for import |
 | `.woff2` | `font/woff2` | Optional static monospace font |
 
 ### Nginx Example

@@ -1,6 +1,6 @@
 # Contributing to Classic123
 
-Thank you for contributing to **Classic123** (`rusted-classic-123`). This guide provides practical end-to-end recipes for implementing features cleanly across our layered Rust + WASM architecture and **GitHub Spec Kit** workflow.
+Thank you for contributing to **Classic123** (`rusted-classic-123`). This guide provides practical end-to-end recipes for implementing features cleanly across our layered Rust architecture (web/WASM and native terminal targets) and **GitHub Spec Kit** workflow.
 
 Before writing code, read:
 1. [`.specify/memory/constitution.md`](../.specify/memory/constitution.md) — Non-negotiable architectural principles.
@@ -13,13 +13,15 @@ Before writing code, read:
 
 New features follow the Spec Kit lifecycle so design decisions are verified before code is written:
 
-1. **Specify (`/speckit.specify`):** Define user scenarios, keyboard + mouse behavior, and ODF 1.3 expectations under `.specify/specs/<feature>/spec.md`.
-2. **Plan (`/speckit.plan`):** Validate explicitly against the constitution:
-   - Zero per-cell HTML DOM nodes (single `<canvas>`).
-   - Full parity across **both keyboard and mouse**.
-   - All logic & serialization isolated in Rust (thin JS host only).
-   - 100% OASIS ODF 1.3 / OpenFormula compliance.
-3. **Tasks (`/speckit.tasks`):** Break work into small, single-scope PRs respecting the L0–L6 layer graph.
+1. **Specify (`/speckit-specify`):** Define user scenarios, keyboard + mouse behavior on both targets, and ODF 1.3 expectations under `.specify/specs/<feature>/spec.md`.
+2. **Plan (`/speckit-plan`):** Include the constitution's **Constitution Check**, verifying explicitly that:
+   1. Web rendering stays free of per-cell DOM elements (single `<canvas>`).
+   2. Every interaction added works via **both keyboard and mouse**.
+   3. Core logic and file serialization stay in the shared Rust core—no business rules in JavaScript or in the native terminal front end.
+   4. The feature works on **both the web and native terminal targets**, or the plan documents the difference and why.
+   5. Generated `.ods` files remain ODF 1.3 compliant, preserving data types, multiple sheets, and OpenFormula syntax.
+   6. The 16 ms input-to-frame budget and the `.wasm` size measurement are addressed.
+3. **Tasks (`/speckit-tasks`):** Break work into small, single-scope PRs respecting the L0–L6 layer graph.
 4. **Implement & Verify:** Write code, behavioral tests, and run `cargo xtask` checks before opening a PR.
 
 ---
@@ -42,11 +44,12 @@ Every state-mutating action in Classic123 MUST be a registered `CommandId`. Neve
    - If the command belongs in the `/` menu, add a concise, trademark-safe label (see [`docs/feature-names.md`](feature-names.md)) with a unique single-letter hotkey within its submenu level.
    - Verify with `cargo xtask menu-commands`.
 
-4. **Wire Keyboard & Mouse Interaction (`L5` — `classic123-tui`):**
+4. **Wire Keyboard & Mouse Interaction (`L5` — `classic123-tui`, shared by both targets):**
    - Map keyboard shortcuts / mode transitions in `InputMapper`.
-   - Ensure mouse hit-testing (`LayoutMap`) supports hover highlight and click (and drag/double-click/scroll if applicable on the grid or headers) per [`docs/interaction-spec.md`](interaction-spec.md).
+   - Ensure mouse hit-testing (`LayoutMap`) supports hover highlight and click (and drag/double-click/wheel if applicable on the grid or headers) per [`docs/interaction-spec.md`](interaction-spec.md).
    - Keep UI copy inside the centralized English string catalog (`AGENTS.md` Rule 17).
-   - Add headless `classic123-tui` tests exercising **both** keyboard and mouse paths.
+   - Add headless `classic123-tui` tests exercising **both** keyboard and mouse paths, for web pixel input and native terminal cell input.
+   - Do not add command logic to `apps/classic123-wasm` or `apps/classic123-term`; they only forward events and perform I/O.
 
 5. **Expose to Headless CLI (`L6` — `apps/classic123-cli`):**
    - Ensure `classic123-cli exec` can invoke the new `CommandId` from JSON scripts.
@@ -74,7 +77,7 @@ Every state-mutating action in Classic123 MUST be a registered `CommandId`. Neve
 
 - **Clean-room only:** Do NOT copy source code, assets, UI text, or test files from other spreadsheet applications, and do NOT study GPL/LGPL/AGPL spreadsheet source code.
 - **Trademark-safe naming:** Follow [`docs/feature-names.md`](feature-names.md) for all user-visible labels, CLI flags, and docs headings.
-- **Permissive crates only:** Any new crate added to `Cargo.toml` MUST use `MIT`, `Apache-2.0`, `BSD-2-Clause`, `BSD-3-Clause`, `ISC`, `Zlib`, `Unicode-3.0`, or `MPL-2.0`, and MUST compile for `wasm32-unknown-unknown` (unless restricted to `apps/classic123-cli` or `xtask`).
+- **Permissive crates only:** Any new crate added to `Cargo.toml` MUST use `MIT`, `Apache-2.0`, `BSD-2-Clause`, `BSD-3-Clause`, `ISC`, `Zlib`, `Unicode-3.0`, or `MPL-2.0`, and MUST compile for `wasm32-unknown-unknown` (unless restricted to `apps/classic123-term`, `apps/classic123-cli`, or `xtask`).
 - **Attribution:** Log any new test fixture (`corpus/`) or font (`web/fonts/`) in [`ATTRIBUTION.md`](../ATTRIBUTION.md) in the same PR.
 
 ---
@@ -90,6 +93,7 @@ cargo test -p <modified-crate>
 cargo xtask layers
 cargo xtask menu-commands
 cargo xtask wasm
+cargo build -p classic123-term
 cargo xtask ods-conformance
 ```
 
@@ -103,6 +107,6 @@ Before requesting review:
 - [ ] PR addresses one focused issue or Spec Kit task (moves/renames separated from behavior changes).
 - [ ] No `#[allow(...)]` lint suppressions or `unsafe` blocks added.
 - [ ] No panics (`unwrap`/`expect`) introduced in non-test code.
-- [ ] Keyboard **and** mouse interactions both tested for any UI change.
+- [ ] Keyboard **and** mouse interactions both tested for any UI change, on the web and native terminal targets.
 - [ ] Crash/bug fixes include a regression test (and a hostile-input fixture in `corpus/hostile/` if applicable).
 - [ ] No scratch files (`log/`, `plan/`, `.claude/`, `.cursor/`, `.codex/`) committed.

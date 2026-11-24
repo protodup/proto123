@@ -5,6 +5,8 @@
 
 Every state-mutating action in **Classic123** MUST be registered as a typed `CommandId` in `classic123-engine`. This checklist tracks parity across **Keyboard**, **Mouse**, **Slash Command Bar (`/`)**, and **Headless CLI** so no interaction path lags behind or becomes unreachable.
 
+**Both targets:** the **Keyboard**, **Mouse**, and **`/` Menu** columns apply to the web target *and* the native terminal target. A row is `[x]` only when both targets pass; a documented platform difference is noted in the row (the **Web / Native** column for file I/O).
+
 ---
 
 ## Legend
@@ -79,14 +81,13 @@ Every state-mutating action in **Classic123** MUST be registered as a typed `Com
 
 ## 5. File, ODF 1.3 & Server I/O (`file.*`)
 
-| CommandId | Description | Keyboard | Mouse | `/` Menu | Headless CLI | Status |
-|---|---|---|---|---|---|---|
-| `file.newWorkbook` | Reset session to clean empty workbook | Menu shortcut | Hover & click menu | `/File/New` | `exec` | `[ ]` |
-| `file.openLocal` | Load local `.ods` or `.csv` via file picker | `Ctrl+O` | Hover & click menu | `/File/Open` | `inspect`/`recalc` | `[ ]` |
-| `file.fetchRemote` | Fetch `.ods`/`.csv` from URL via `fetch()` | Menu shortcut | Hover & click dialog | `/File/Fetch URL` | `N/A` (local path) | `[ ]` |
-| `file.saveOds` | Serialize 100% ODF 1.3 `.ods` & download | `Ctrl+S` | Hover & click menu | `/File/Save ODS` | `recalc -o` | `[ ]` |
-| `file.pushRemote` | Serialize `.ods` and send via `PUT`/`POST` hook | Menu shortcut | Hover & click menu | `/File/Push Server` | `N/A` | `[ ]` |
-| `file.exportCsv` | Export active sheet to RFC 4180 `.csv` | Menu shortcut | Hover & click menu | `/File/Export CSV` | `convert` | `[ ]` |
+| CommandId | Description | Web / Native | Keyboard | Mouse | `/` Menu | Headless CLI | Status |
+|---|---|---|---|---|---|---|---|
+| `file.newWorkbook` | Reset session to clean empty workbook | Same | Menu shortcut | Hover & click menu | `/File/New` | `exec` | `[ ]` |
+| `file.openLocal` | Load local `.ods`, `.xlsx`, or `.csv` | Web: browser file picker · Native: path dialog / CLI argument | `Ctrl+O` | Hover & click menu | `/File/Open` | `inspect`/`recalc`/`convert` | `[ ]` |
+| `file.fetchRemote` | Load `.ods`/`.xlsx`/`.csv` from a URL | Web: `fetch()` · Native: HTTP client | Menu shortcut | Hover & click dialog | `/File/Fetch URL` | `N/A` (local path) | `[ ]` |
+| `file.saveOds` | Serialize 100% ODF 1.3 `.ods` (the only output format) | Web: browser download · Native: write to local filesystem | `Ctrl+S` | Hover & click menu | `/File/Save ODS` | `recalc -o` / `convert -o` | `[ ]` |
+| `file.pushRemote` | Serialize `.ods` and send via opt-in `PUT`/`POST` hook | Same (configured hook only) | Menu shortcut | Hover & click menu | `/File/Push Server` | `N/A` | `[ ]` |
 
 ---
 
@@ -107,4 +108,4 @@ Every state-mutating action in **Classic123** MUST be registered as a typed `Com
 
 1. Whenever a new `CommandId` is added to `classic123-engine`, add it to this table in the same PR and run `cargo xtask parity` and `cargo xtask menu-commands`.
 2. Every entry in `menu_catalog.rs` MUST have a matching row here with both **Keyboard** and **Mouse** access verified.
-3. Never mark a row `[x]` until unit/integration tests pass for both the engine behavior and (where applicable) TUI keyboard + mouse hit-testing in `classic123-tui`.
+3. Never mark a row `[x]` until unit/integration tests pass for both the engine behavior and (where applicable) TUI keyboard + mouse hit-testing in `classic123-tui`, covering web pixel input and native terminal cell input.

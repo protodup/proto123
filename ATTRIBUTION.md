@@ -2,7 +2,7 @@
 
 > **Policy Reference:** `AGENTS.md` Rules 24–27 (Clean Room and Licences)
 
-Every non-code asset in `rusted-classic-123`—including monospace web fonts served from `web/fonts/` and `.ods`/`.csv` test fixtures stored under `corpus/`—MUST be original clean-room work or carry an approved permissive open license recorded in this file in the same PR that adds it.
+Every non-code asset in `rusted-classic-123`—including monospace web fonts served from `web/fonts/` and `.ods`/`.xlsx`/`.csv` test fixtures stored under `corpus/`—MUST be original clean-room work or carry an approved permissive open license recorded in this file in the same PR that adds it.
 
 ---
 
@@ -11,6 +11,7 @@ Every non-code asset in `rusted-classic-123`—including monospace web fonts ser
 Classic123 implements behavior directly from public, royalty-free technical specifications:
 
 - **OASIS OpenDocument Format (ODF) Version 1.3** (ISO/IEC 26300) — Parts 2 (Packages), 3 (OpenDocument Schema), and 4 (Recalculated Formula / OpenFormula).
+- **ECMA-376 / ISO/IEC 29500 (Office Open XML)** — public specification used for `.xlsx` import only.
 - **RFC 4180** — Common Format and MIME Type for Comma-Separated Values (CSV) Files.
 - **ISO 8601** — Date and time string representations used in ODF `office:date-value` and `office:time-value`.
 - **IEEE 754** — Double-precision floating-point arithmetic semantics.
@@ -19,6 +20,8 @@ Classic123 implements behavior directly from public, royalty-free technical spec
 
 ## 2. Monospace Fonts (`web/fonts/`)
 
+> **Scope:** Web target only—the native terminal app uses the terminal's own font.
+>
 > **Rule:** Fonts are NEVER embedded into the `.wasm` binary. Optional `.woff2` fonts are served as static files alongside `index.html` with an immediate fallback to the OS `monospace` font.
 
 | Asset Path | Font Name & Version | Upstream Source | License | License File |
@@ -29,7 +32,7 @@ Classic123 implements behavior directly from public, royalty-free technical spec
 
 ## 3. Test Corpus Fixtures (`corpus/`)
 
-Every `.ods` and `.csv` file under `corpus/valid/` and `corpus/hostile/` MUST be listed below with its creation method or upstream provenance.
+Every `.ods`, `.xlsx`, and `.csv` file under `corpus/valid/` and `corpus/hostile/` MUST be listed below with its creation method or upstream provenance.
 
 ### 3.1 Valid Conformance Corpus (`corpus/valid/`)
 
