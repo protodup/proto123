@@ -1,4 +1,4 @@
-# Classic123 (`rusted-classic-123`)
+# Classic123
 
 Ultra-lightweight, classic terminal-style (TUI) spreadsheet engineered in **Rust**. One shared core runs in the browser via **WebAssembly (WASM)** on a single HTML5 `<canvas>` with zero per-cell DOM overhead, and locally as a **native terminal application**. Hybrid **keyboard-first + full mouse** ergonomics on both, under-16 ms input-to-frame latency, Docker self-hosting, and **100% OASIS ODF 1.3 (`.ods`)** output.
 

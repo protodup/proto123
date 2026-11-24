@@ -1,6 +1,6 @@
 # Contributing to Classic123
 
-Thank you for contributing to **Classic123** (`rusted-classic-123`). This guide provides practical end-to-end recipes for implementing features cleanly across our layered Rust architecture (web/WASM and native terminal targets) and **GitHub Spec Kit** workflow.
+Thank you for contributing to **Classic123**. This guide provides practical end-to-end recipes for implementing features cleanly across our layered Rust architecture (web/WASM and native terminal targets) and **GitHub Spec Kit** workflow.
 
 Before writing code, read:
 1. [`.specify/memory/constitution.md`](../.specify/memory/constitution.md) — Non-negotiable architectural principles.

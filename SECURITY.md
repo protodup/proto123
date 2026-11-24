@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-**Classic123** (`rusted-classic-123`) is currently in active pre-1.0 development. Security fixes are applied directly to the `main` branch. Once tagged releases begin, the latest minor release line will receive security patches.
+**Classic123** is currently in active pre-1.0 development. Security fixes are applied directly to the `main` branch. Once tagged releases begin, the latest minor release line will receive security patches.
 
 ---
 

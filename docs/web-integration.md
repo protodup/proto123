@@ -1,6 +1,6 @@
 # Web Integration & Self-Hosting Guide
 
-This guide explains how to deploy the **web target** of **Classic123** (`rusted-classic-123`) on a personal static website or via Docker, load `.ods` / `.xlsx` / `.csv` files directly from your server, configure required HTTP MIME types, and optionally persist edits back to your server.
+This guide explains how to deploy the **web target** of **Classic123** on a personal static website or via Docker, load `.ods` / `.xlsx` / `.csv` files directly from your server, configure required HTTP MIME types, and optionally persist edits back to your server.
 
 > The native terminal app (`classic123-term`) needs no web server: it opens local files or HTTP(S) URLs directly and saves to the local filesystem. See [`docs/development.md`](development.md).
 

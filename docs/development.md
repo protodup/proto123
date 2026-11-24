@@ -1,6 +1,6 @@
 # Development Guide
 
-This guide covers setting up a local environment, building the WebAssembly app, the native terminal app, and the headless CLI, running fast test loops, validating ODF 1.3 (`.ods`) conformance, and running the multi-stage Docker container for **Classic123** (`rusted-classic-123`).
+This guide covers setting up a local environment, building the WebAssembly app, the native terminal app, and the headless CLI, running fast test loops, validating ODF 1.3 (`.ods`) conformance, and running the multi-stage Docker container for **Classic123**.
 
 ---
 
@@ -14,7 +14,7 @@ This guide covers setting up a local environment, building the WebAssembly app, 
   - [`cargo-nextest`](https://nexte.st/) (`cargo install --locked cargo-nextest`) for parallel test execution.
   - **Docker** (Engine or Desktop) for testing the production static container and MIME-type configuration.
   - **LibreOffice (`soffice`)** *(optional)* for cross-checking generated `.ods` files against an external ODF 1.3 implementation during local verification.
-- **No native GUI/GPU libraries required:** Unlike desktop GUI apps, `rusted-classic-123` requires **no** GTK, Wayland, X11, OpenGL, or Vulkan system packages on Linux, macOS, or Windows. The native terminal app uses crossterm (pure Rust) and runs in any terminal; the web app runs inside the browser's `<canvas>` via WASM.
+- **No native GUI/GPU libraries required:** Unlike desktop GUI apps, Classic123 requires **no** GTK, Wayland, X11, OpenGL, or Vulkan system packages on Linux, macOS, or Windows. The native terminal app uses crossterm (pure Rust) and runs in any terminal; the web app runs inside the browser's `<canvas>` via WASM.
 
 ### Windows Source Builds
 

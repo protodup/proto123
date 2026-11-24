@@ -1,6 +1,6 @@
-# rusted-classic-123 Constitution
+# Classic123 Constitution
 
-**Vision and Identity**: rusted-classic-123 is a terminal-style (TUI) spreadsheet application
+**Vision and Identity**: Classic123 is a terminal-style (TUI) spreadsheet application
 inspired by the speed and ergonomics of Lotus 1-2-3, built in Rust. It runs 100% client-side in
 the browser via WebAssembly (WASM) on a static site, and also runs locally as a native terminal
 application or via Docker. Its mission is to eliminate the bloat, lag, and heavy abstractions of
@@ -185,4 +185,4 @@ pixel-to-TUI and cell-to-element hit-testing, and `.ods` generation with round-t
   Quality Gates above. Any justified deviation MUST be recorded in the plan's Complexity Tracking
   with the reason and the simpler alternative that was rejected.
 
-**Version**: 1.1.0 | **Ratified**: 2026-11-24 | **Last Amended**: 2026-11-24
+**Version**: 1.1.1 | **Ratified**: 2026-11-24 | **Last Amended**: 2026-11-24

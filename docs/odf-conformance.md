@@ -4,7 +4,7 @@
 > **Owning Crates:** `classic123-ods` (L3), `classic123-xlsx` and `classic123-csv` (L3, import only), `classic123-formula` (L1), `classic123-value` (L0)
 > **Automated Gate:** `cargo xtask ods-conformance`
 
-This document defines the exact structural, XML, OpenFormula, and security invariants that **Classic123** (`rusted-classic-123`) MUST uphold so every generated `.ods` file opens cleanly without repair prompts, formula loss, or semantic drift in LibreOffice Calc, Collabora, and other ODF-compliant suites.
+This document defines the exact structural, XML, OpenFormula, and security invariants that **Classic123** MUST uphold so every generated `.ods` file opens cleanly without repair prompts, formula loss, or semantic drift in LibreOffice Calc, Collabora, and other ODF-compliant suites.
 
 **Output is always `.ods`.** `.xlsx` and `.csv` are accepted as input only (see Section 9); Classic123 never writes them.
 

@@ -71,7 +71,7 @@ The architectural litmus test: **adding a new OpenFormula function, a new TUI th
 ## 2. Workspace Layout
 
 ```text
-rusted-classic-123/
+classic123/
 ├─ Cargo.toml                     # [workspace], shared deps, workspace lints (unsafe_code = "forbid"), release/wasm profiles
 ├─ AGENTS.md                      # Operational rules for human and AI contributors
 ├─ ATTRIBUTION.md                 # Provenance and licences for fonts and test fixtures

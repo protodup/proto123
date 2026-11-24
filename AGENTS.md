@@ -1,6 +1,6 @@
-# Rules for Agents in `rusted-classic-123`
+# Rules for Agents in Classic123
 
-This document governs all human-assisted and autonomous coding agents working in `rusted-classic-123` (product name: **Classic123**). It operates alongside the GitHub Spec Kit constitution (`.specify/memory/constitution.md`). Where both apply, architectural invariants in the constitution and operational rules in this file are jointly binding.
+This document governs all human-assisted and autonomous coding agents working in **Classic123**. It operates alongside the GitHub Spec Kit constitution (`.specify/memory/constitution.md`). Where both apply, architectural invariants in the constitution and operational rules in this file are jointly binding.
 
 The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are used as in RFC 2119 and RFC 8174. When you depart from a **SHOULD**, state clearly what you departed from and why in the PR description.
 
@@ -97,7 +97,7 @@ The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** ar
 
 ## This repository
 
-**Classic123** (`rusted-classic-123`) is an ultra-lightweight, keyboard-first + mouse-enabled TUI spreadsheet written in Rust. One shared core runs in two targets: compiled to WebAssembly (`wasm32-unknown-unknown`) for single-`<canvas>` browser execution (served locally or as a Docker static deployment), and as a native terminal application for Linux, macOS, and Windows. Output is always 100% OASIS ODF 1.3 (`.ods`); `.xlsx` and `.csv` are accepted as input.
+**Classic123** is an ultra-lightweight, keyboard-first + mouse-enabled TUI spreadsheet written in Rust. One shared core runs in two targets: compiled to WebAssembly (`wasm32-unknown-unknown`) for single-`<canvas>` browser execution (served locally or as a Docker static deployment), and as a native terminal application for Linux, macOS, and Windows. Output is always 100% OASIS ODF 1.3 (`.ods`); `.xlsx` and `.csv` are accepted as input.
 
 - **Product name:** Classic123
 - **Crate / binary prefix:** `classic123-*` (lowercase)

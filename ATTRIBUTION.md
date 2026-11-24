@@ -2,7 +2,7 @@
 
 > **Policy Reference:** `AGENTS.md` Rules 24–27 (Clean Room and Licences)
 
-Every non-code asset in `rusted-classic-123`—including monospace web fonts served from `web/fonts/` and `.ods`/`.xlsx`/`.csv` test fixtures stored under `corpus/`—MUST be original clean-room work or carry an approved permissive open license recorded in this file in the same PR that adds it.
+Every non-code asset in Classic123—including monospace web fonts served from `web/fonts/` and `.ods`/`.xlsx`/`.csv` test fixtures stored under `corpus/`—MUST be original clean-room work or carry an approved permissive open license recorded in this file in the same PR that adds it.
 
 ---
 
