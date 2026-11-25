@@ -1,8 +1,8 @@
 # Web Integration & Self-Hosting Guide
 
-This guide explains how to deploy the **web target** of **Classic123** on a personal static website or via Docker, load `.ods` / `.xlsx` / `.csv` files directly from your server, configure required HTTP MIME types, and optionally persist edits back to your server.
+This guide explains how to deploy the **web target** of **Proto123** on a personal static website or via Docker, load `.ods` / `.xlsx` / `.csv` files directly from your server, configure required HTTP MIME types, and optionally persist edits back to your server.
 
-> The native terminal app (`classic123-term`) needs no web server: it opens local files or HTTP(S) URLs directly and saves to the local filesystem. See [`docs/development.md`](development.md).
+> The native terminal app (`proto123-term`) needs no web server: it opens local files or HTTP(S) URLs directly and saves to the local filesystem. See [`docs/development.md`](development.md).
 
 ---
 
@@ -13,8 +13,8 @@ Building the web application (`trunk build --release`) produces a self-contained
 ```text
 dist/
 ├─ index.html                     # Minimal host page (<canvas> + single ARIA live region)
-├─ classic123_wasm.js             # Thin wasm-bindgen loader & input forwarder
-├─ classic123_wasm_bg.wasm        # Optimized Rust engine + Ratatui/Ratzilla TUI + ODF 1.3 codec + .xlsx/.csv importers
+├─ proto123_wasm.js             # Thin wasm-bindgen loader & input forwarder
+├─ proto123_wasm_bg.wasm        # Optimized Rust engine + Ratatui/Ratzilla TUI + ODF 1.3 codec + .xlsx/.csv importers
 ├─ style.css                      # Minimal fullscreen canvas reset & focus ring
 └─ fonts/                         # Optional static .woff2 monospace font (never inside .wasm)
 ```
@@ -34,17 +34,17 @@ https://yoursite.example/sheets/?file=/data/budget-2026.ods
 ```
 
 On startup, the thin web host:
-1. Instantiates `classic123_wasm_bg.wasm` via `WebAssembly.instantiateStreaming`.
+1. Instantiates `proto123_wasm_bg.wasm` via `WebAssembly.instantiateStreaming`.
 2. Executes `fetch(fileUrl)` -> `response.arrayBuffer()` -> `new Uint8Array(buffer)`.
-3. Passes the bytes straight into `classic123_wasm::load_bytes(bytes, name)`, where Rust detects `.ods`, `.xlsx`, or `.csv`, recalculates the DAG, and renders frame 1 on the `<canvas>`. A failed fetch or unreadable file is reported in the status bar and never replaces the current workbook.
+3. Passes the bytes straight into `proto123_wasm::load_bytes(bytes, name)`, where Rust detects `.ods`, `.xlsx`, or `.csv`, recalculates the DAG, and renders frame 1 on the `<canvas>`. A failed fetch or unreadable file is reported in the status bar and never replaces the current workbook.
 
-### Option B — JavaScript Configuration Hook (`window.CLASSIC123_CONFIG`)
+### Option B — JavaScript Configuration Hook (`window.PROTO123_CONFIG`)
 
-To embed Classic123 inside an existing page or configure server-side saving (`PUT`/`POST`), declare a lightweight configuration object before the module script loads:
+To embed Proto123 inside an existing page or configure server-side saving (`PUT`/`POST`), declare a lightweight configuration object before the module script loads:
 
 ```html
 <script>
-  window.CLASSIC123_CONFIG = {
+  window.PROTO123_CONFIG = {
     // Optional default file loaded on startup (overridden by ?file=... unless locked)
     initialFileUrl: "/data/budget-2026.ods",
 
@@ -120,7 +120,7 @@ server {
 
 ```caddyfile
 :80 {
-    root * /srv/classic123
+    root * /srv/proto123
     encode zstd gzip
     file_server
 
@@ -148,10 +148,10 @@ server {
 
 ## 4. CORS & Security Recommendations
 
-- **Same-Origin by Default:** Keep `.ods` files on the same origin as Classic123 whenever possible (`allowCrossOriginFiles: false`). This avoids CORS preflights and prevents your instance from being used to fetch arbitrary third-party URLs via crafted `?file=` links.
+- **Same-Origin by Default:** Keep `.ods` files on the same origin as Proto123 whenever possible (`allowCrossOriginFiles: false`). This avoids CORS preflights and prevents your instance from being used to fetch arbitrary third-party URLs via crafted `?file=` links.
 - **Cross-Origin `.ods` Buckets:** If your spreadsheets live on a separate static bucket (e.g., S3/R2), configure `Access-Control-Allow-Origin: https://yoursite.example` on the bucket and explicitly whitelist allowed origins in your host page.
 - **Authentication on Save:** If implementing `onSaveOds` with `PUT`/`POST`, rely on HTTP-only session cookies (`credentials: "same-origin"`) or short-lived tokens obtained at runtime—never hardcode API keys or passwords inside static files.
-- **Content Security Policy (CSP):** Classic123 requires `'wasm-unsafe-eval'` in `script-src` only when required by older browsers for WebAssembly compilation, and never uses `eval()` or inline cell HTML.
+- **Content Security Policy (CSP):** Proto123 requires `'wasm-unsafe-eval'` in `script-src` only when required by older browsers for WebAssembly compilation, and never uses `eval()` or inline cell HTML.
 
 ---
 
@@ -160,13 +160,13 @@ server {
 Run the preconfigured multi-stage container (verified automatically by `cargo xtask docker-check`):
 
 ```sh
-docker build -t classic123:local .
+docker build -t proto123:local .
 
-# Serve Classic123 alongside your own directory of .ods spreadsheets
-docker run -d --name classic123 \
+# Serve Proto123 alongside your own directory of .ods spreadsheets
+docker run -d --name proto123 \
   -p 8080:80 \
   -v /path/to/my/spreadsheets:/usr/share/nginx/html/sheets:ro \
-  classic123:local
+  proto123:local
 ```
 
 Then open any sheet in your browser:

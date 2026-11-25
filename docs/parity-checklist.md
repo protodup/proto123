@@ -1,9 +1,9 @@
-# Classic123 Command & Input Parity Checklist
+# Proto123 Command & Input Parity Checklist
 
 > **Last updated:** 2026-11-24 · **Generated / verified by:** `cargo xtask parity` & `cargo xtask menu-commands`
 > **Policy Reference:** `AGENTS.md` Rules 14 & 22 · `.specify/memory/constitution.md` Principle III
 
-Every state-mutating action in **Classic123** MUST be registered as a typed `CommandId` in `classic123-engine`. This checklist tracks parity across **Keyboard**, **Mouse**, **Slash Command Bar (`/`)**, and **Headless CLI** so no interaction path lags behind or becomes unreachable.
+Every state-mutating action in **Proto123** MUST be registered as a typed `CommandId` in `proto123-engine`. This checklist tracks parity across **Keyboard**, **Mouse**, **Slash Command Bar (`/`)**, and **Headless CLI** so no interaction path lags behind or becomes unreachable.
 
 **Both targets:** the **Keyboard**, **Mouse**, and **`/` Menu** columns apply to the web target *and* the native terminal target. A row is `[x]` only when both targets pass; a documented platform difference is noted in the row (the **Web / Native** column for file I/O).
 
@@ -44,8 +44,8 @@ Every state-mutating action in **Classic123** MUST be registered as a typed `Com
 | `cell.cancelEdit` | Discard uncommitted input buffer | `Esc` | Click cancel / press `Esc` | `N/A` | `N/A` | `[ ]` |
 | `cell.pointInsertRef` | Insert clicked/navigated ref while in `POINT` mode | Arrow / `Shift+Arrow` after operator | Click or drag cells during formula entry | `N/A` | `N/A` | `[ ]` |
 | `cell.toggleAbsRef` | Cycle `A1` -> `$A$1` -> `A$1` -> `$A1` | `F4` (in `EDIT`/`POINT`) | `N/A` | `N/A` | `N/A` | `[ ]` |
-| `edit.undo` | Revert last `classic123-ops` delta | `Ctrl+Z` / `Alt+F4` classic undo | Click `/Edit/Undo` | `/Edit/Undo` | `exec` | `[ ]` |
-| `edit.redo` | Reapply undone `classic123-ops` delta | `Ctrl+Y` / `Ctrl+Shift+Z` | Click `/Edit/Redo` | `/Edit/Redo` | `exec` | `[ ]` |
+| `edit.undo` | Revert last `proto123-ops` delta | `Ctrl+Z` / `Alt+F4` classic undo | Click `/Edit/Undo` | `/Edit/Undo` | `exec` | `[ ]` |
+| `edit.redo` | Reapply undone `proto123-ops` delta | `Ctrl+Y` / `Ctrl+Shift+Z` | Click `/Edit/Redo` | `/Edit/Redo` | `exec` | `[ ]` |
 
 ---
 
@@ -106,6 +106,6 @@ Every state-mutating action in **Classic123** MUST be registered as a typed `Com
 
 ## Maintenance Rules
 
-1. Whenever a new `CommandId` is added to `classic123-engine`, add it to this table in the same PR and run `cargo xtask parity` and `cargo xtask menu-commands`.
+1. Whenever a new `CommandId` is added to `proto123-engine`, add it to this table in the same PR and run `cargo xtask parity` and `cargo xtask menu-commands`.
 2. Every entry in `menu_catalog.rs` MUST have a matching row here with both **Keyboard** and **Mouse** access verified.
-3. Never mark a row `[x]` until unit/integration tests pass for both the engine behavior and (where applicable) TUI keyboard + mouse hit-testing in `classic123-tui`, covering web pixel input and native terminal cell input.
+3. Never mark a row `[x]` until unit/integration tests pass for both the engine behavior and (where applicable) TUI keyboard + mouse hit-testing in `proto123-tui`, covering web pixel input and native terminal cell input.

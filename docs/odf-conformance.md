@@ -1,18 +1,18 @@
-# Classic123 ODF 1.3 Conformance Specification
+# Proto123 ODF 1.3 Conformance Specification
 
 > **Standard Target:** OASIS OpenDocument Format (ODF) 1.3 / ISO/IEC 26300 (Parts 2, 3, and 4 — Packages, OpenDocument Schema, and Recalculated Formula / OpenFormula)
-> **Owning Crates:** `classic123-ods` (L3), `classic123-xlsx` and `classic123-csv` (L3, import only), `classic123-formula` (L1), `classic123-value` (L0)
+> **Owning Crates:** `proto123-ods` (L3), `proto123-xlsx` and `proto123-csv` (L3, import only), `proto123-formula` (L1), `proto123-value` (L0)
 > **Automated Gate:** `cargo xtask ods-conformance`
 
-This document defines the exact structural, XML, OpenFormula, and security invariants that **Classic123** MUST uphold so every generated `.ods` file opens cleanly without repair prompts, formula loss, or semantic drift in LibreOffice Calc, Collabora, and other ODF-compliant suites.
+This document defines the exact structural, XML, OpenFormula, and security invariants that **Proto123** MUST uphold so every generated `.ods` file opens cleanly without repair prompts, formula loss, or semantic drift in LibreOffice Calc, Collabora, and other ODF-compliant suites.
 
-**Output is always `.ods`.** `.xlsx` and `.csv` are accepted as input only (see Section 9); Classic123 never writes them.
+**Output is always `.ods`.** `.xlsx` and `.csv` are accepted as input only (see Section 9); Proto123 never writes them.
 
 ---
 
 ## 1. ZIP Package Container Rules (ODF 1.3 Part 2)
 
-Every `.ods` archive written by `classic123-ods` MUST conform strictly to the ODF ZIP container layout:
+Every `.ods` archive written by `proto123-ods` MUST conform strictly to the ODF ZIP container layout:
 
 1. **Entry #0 (`mimetype`):**
    - MUST be the **first** entry in the ZIP archive.
@@ -25,7 +25,7 @@ Every `.ods` archive written by `classic123-ods` MUST conform strictly to the OD
 2. **Required Package Files:**
    - `content.xml` — spreadsheet tables, cell values, cached display text, and OpenFormula expressions.
    - `styles.xml` — named styles, default number/date/currency formats, and page layout definitions.
-   - `meta.xml` — document metadata (generator `Classic123/<version>`, creation/modification timestamps in ISO 8601 UTC via `chrono`).
+   - `meta.xml` — document metadata (generator `Proto123/<version>`, creation/modification timestamps in ISO 8601 UTC via `chrono`).
    - `META-INF/manifest.xml` — package manifest declaring `manifest:version="1.3"`, the root entry (`manifest:full-path="/"` with media type `application/vnd.oasis.opendocument.spreadsheet`), and every XML file present in the archive.
 3. **Deterministic Serialization:**
    - Entry order, XML attribute order, and style IDs MUST be deterministic across native and `wasm32-unknown-unknown` builds so identical workbooks produce reproducible `.ods` output.
@@ -53,7 +53,7 @@ Root elements MUST carry `office:version="1.3"`.
 
 ---
 
-## 3. Cell Value Types & Mapping (`classic123-value` <-> ODF XML)
+## 3. Cell Value Types & Mapping (`proto123-value` <-> ODF XML)
 
 Every populated `<table:table-cell>` MUST carry both the machine-readable ODF value attributes and the cached display representation inside `<text:p>` so viewers that do not recalculate on open render the exact evaluated result:
 
@@ -77,12 +77,12 @@ Every populated `<table:table-cell>` MUST carry both the machine-readable ODF va
 
 ## 4. Sparse Sheet Compression
 
-Because `classic123-model` uses sparse storage:
+Because `proto123-model` uses sparse storage:
 
 - Consecutive identical empty cells MUST be collapsed using `table:number-columns-repeated`.
 - Consecutive empty rows MUST be collapsed using `table:number-rows-repeated`.
 - Trailing empty cells in a row and trailing empty rows in a sheet MUST NOT be emitted unnecessarily.
-- On **read**, `classic123-ods` MUST ignore excessive trailing empty repetition counts (e.g., `table:number-columns-repeated="16384"` or `table:number-rows-repeated="1048576"` emitted by external suites for default formatting) without allocating memory for empty cells.
+- On **read**, `proto123-ods` MUST ignore excessive trailing empty repetition counts (e.g., `table:number-columns-repeated="16384"` or `table:number-rows-repeated="1048576"` emitted by external suites for default formatting) without allocating memory for empty cells.
 
 ---
 
@@ -106,13 +106,13 @@ Error values follow OASIS OpenFormula conventions and MUST propagate cleanly wit
 | `#NAME?` | Unrecognized function name or identifier |
 | `#NUM!` | Invalid numeric domain (e.g., `SQRT(-1)`, overflow) |
 | `#N/A` | Value not available (lookup miss or explicit `NA()`) |
-| `#CIRC!` | Circular dependency detected by `classic123-calc` DAG |
+| `#CIRC!` | Circular dependency detected by `proto123-calc` DAG |
 | `#ERR` | General parser or syntax error |
 
 ### 5.3 Function Coverage Tiers
 - **Tier 1 (Phase 1 MVP):** Arithmetic (`+`, `-`, `*`, `/`, `^`, unary `-`, `%`), comparisons (`=`, `<>`, `<`, `<=`, `>`, `>=`), concatenation (`&`), `SUM`, `AVERAGE`, `MIN`, `MAX`, `COUNT`, `COUNTA`, `IF`, `AND`, `OR`, `NOT`, `ABS`, `ROUND`, `INT`, `SQRT`, `MOD`.
 - **Tier 2 (Phase 3–4 Core Office Parity):** `SUMIF`, `COUNTIF`, `IFERROR`, `ISBLANK`, `ISNUMBER`, `ISTEXT`, `VLOOKUP`, `HLOOKUP`, `INDEX`, `MATCH`, `LEFT`, `RIGHT`, `MID`, `LEN`, `TRIM`, `UPPER`, `LOWER`, `CONCATENATE`, `DATE`, `YEAR`, `MONTH`, `DAY`, `TODAY`, `NOW`, `NPV`, `PMT`, `FV`, `PV`.
-- **Unsupported Functions:** If an imported `.ods` contains a valid OpenFormula function not yet implemented in `classic123-formula`, the original formula AST/text MUST be preserved for round-trip while evaluating to an explicit `#NAME?` diagnostic (or preserving the cached value only in read-only inspect mode with an explicit warning—never silently claiming evaluation succeeded).
+- **Unsupported Functions:** If an imported `.ods` contains a valid OpenFormula function not yet implemented in `proto123-formula`, the original formula AST/text MUST be preserved for round-trip while evaluating to an explicit `#NAME?` diagnostic (or preserving the cached value only in read-only inspect mode with an explicit warning—never silently claiming evaluation succeeded).
 
 ---
 
@@ -121,13 +121,13 @@ Error values follow OASIS OpenFormula conventions and MUST propagate cleanly wit
 When loading an existing `.ods` and saving it back:
 
 - **Guaranteed preserved:** sheet names & order, cell coordinates, values, types, OpenFormula expressions, column widths, basic alignment & number styles, and document metadata.
-- **Pass-through preservation:** unrecognized XML styles, custom namespaces, or non-tabular metadata SHOULD be retained in an opaque per-workbook/per-sheet extension bag where safe, or explicitly flagged in `classic123-cli inspect` diagnostics when dropped.
+- **Pass-through preservation:** unrecognized XML styles, custom namespaces, or non-tabular metadata SHOULD be retained in an opaque per-workbook/per-sheet extension bag where safe, or explicitly flagged in `proto123-cli inspect` diagnostics when dropped.
 
 ---
 
 ## 7. Hostile-Input & Safety Guards (Zero-Panic Policy)
 
-Because `classic123-ods` runs directly on untrusted remote URLs and local user files, inside WebAssembly and in the native terminal app:
+Because `proto123-ods` runs directly on untrusted remote URLs and local user files, inside WebAssembly and in the native terminal app:
 
 - **Decompression Bomb Limit:** Enforce a strict maximum uncompressed byte budget per XML entry and per archive (configurable, default 64 MiB for browser WASM).
 - **XML Depth & Entity Guards:** Reject deeply nested XML (default max depth 128) and forbid external DTD/XXE expansion (`quick-xml` does not expand external entities).
@@ -138,9 +138,9 @@ Because `classic123-ods` runs directly on untrusted remote URLs and local user f
 
 ## 8. Conformance Verification (`cargo xtask ods-conformance`)
 
-Every PR touching `classic123-ods`, `classic123-formula`, or `classic123-value` MUST pass `cargo xtask ods-conformance`, which verifies:
+Every PR touching `proto123-ods`, `proto123-formula`, or `proto123-value` MUST pass `cargo xtask ods-conformance`, which verifies:
 
-1. **ZIP Structure Validator (`classic123-testkit`):** Asserts `mimetype` is Entry #0, `STORED`, no extra fields, exact bytes, and `META-INF/manifest.xml` lists every archive part.
+1. **ZIP Structure Validator (`proto123-testkit`):** Asserts `mimetype` is Entry #0, `STORED`, no extra fields, exact bytes, and `META-INF/manifest.xml` lists every archive part.
 2. **XML & Namespace Validator:** Confirms well-formed XML, `office:version="1.3"`, and valid `of:=` formula prefixes.
 3. **Round-Trip Invariant Suite (`corpus/valid/`):** `Workbook -> write_ods -> read_ods -> recalc` matches all cell values, types, and canonical formulas.
 4. **Hostile Corpus Sweep (`corpus/hostile/`):** Truncated ZIPs, compressed `mimetype`, wrong entry order, cyclic formulas, and extreme repeated-row counts fail cleanly with zero panics.
@@ -150,7 +150,7 @@ Every PR touching `classic123-ods`, `classic123-formula`, or `classic123-value` 
 
 ## 9. Import-Only Formats (`.xlsx`, `.csv`)
 
-- **`.xlsx` (`classic123-xlsx`):** Reads sheets, typed values (number, string, boolean, date), and formulas, translating formulas to the canonical AST so they save as OpenFormula. A formula that cannot be translated keeps its cached value and raises an explicit import diagnostic—never a silent substitution.
-- **`.csv` (`classic123-csv`):** Reads RFC 4180 CSV/TSV into the active or a new sheet, with delimiter and encoding guards.
+- **`.xlsx` (`proto123-xlsx`):** Reads sheets, typed values (number, string, boolean, date), and formulas, translating formulas to the canonical AST so they save as OpenFormula. A formula that cannot be translated keeps its cached value and raises an explicit import diagnostic—never a silent substitution.
+- **`.csv` (`proto123-csv`):** Reads RFC 4180 CSV/TSV into the active or a new sheet, with delimiter and encoding guards.
 - **Same safety guards:** zip-bomb limits, XML depth limits, coordinate bounds, and typed errors apply to `.xlsx` exactly as to `.ods`.
 - **Saving:** an imported workbook is always saved as ODF 1.3 `.ods`.

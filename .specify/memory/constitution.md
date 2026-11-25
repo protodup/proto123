@@ -1,6 +1,6 @@
-# Classic123 Constitution
+# Proto123 Constitution
 
-**Vision and Identity**: Classic123 is a terminal-style (TUI) spreadsheet application
+**Vision and Identity**: Proto123 is a terminal-style (TUI) spreadsheet application
 inspired by the speed and ergonomics of Lotus 1-2-3, built in Rust. It runs 100% client-side in
 the browser via WebAssembly (WASM) on a static site, and also runs locally as a native terminal
 application or via Docker. Its mission is to eliminate the bloat, lag, and heavy abstractions of

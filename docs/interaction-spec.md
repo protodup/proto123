@@ -1,15 +1,15 @@
-# Classic123 TUI & Hybrid Input Interaction Specification
+# Proto123 TUI & Hybrid Input Interaction Specification
 
-> **Owning Crates:** `classic123-engine` (L4), `classic123-tui` (L5), `apps/classic123-wasm` and `apps/classic123-term` (L6)
+> **Owning Crates:** `proto123-engine` (L4), `proto123-tui` (L5), `apps/proto123-wasm` and `apps/proto123-term` (L6)
 > **Principles:** Zero DOM per cell · Keyboard-First Speed · First-Class Mouse Support · Same Behavior on Web and Native · Accessibility Without Cell DOM
 
-This document defines the exact visual layout, mode transitions, keyboard shortcuts, Slash Command Bar (`/`) tree, and mouse hit-testing behavior for **Classic123**. Everything here applies identically to the **web target** (single `<canvas>`) and the **native terminal target**, unless a difference is explicitly listed. All interactions dispatch typed `CommandId`s defined in [`docs/parity-checklist.md`](parity-checklist.md).
+This document defines the exact visual layout, mode transitions, keyboard shortcuts, Slash Command Bar (`/`) tree, and mouse hit-testing behavior for **Proto123**. Everything here applies identically to the **web target** (single `<canvas>`) and the **native terminal target**, unless a difference is explicitly listed. All interactions dispatch typed `CommandId`s defined in [`docs/parity-checklist.md`](parity-checklist.md).
 
 ---
 
 ## 1. Viewport Anatomy (80×24 Minimum Baseline)
 
-Classic123 divides the character grid `(cols, rows)`—the `<canvas>` grid derived from `CellMetrics { char_width, char_height, dpr }` on the web, or the terminal size on native—into four fixed bands:
+Proto123 divides the character grid `(cols, rows)`—the `<canvas>` grid derived from `CellMetrics { char_width, char_height, dpr }` on the web, or the terminal size on native—into four fixed bands:
 
 ```text
 Row 0:  [A1] (G) =SUM(B1:B10)                                            [READY]
@@ -101,10 +101,10 @@ Every feature MUST be 100% reachable by keyboard with zero focus traps, on both 
 
 ## 4. First-Class Mouse Interaction Contract (`LayoutMap`)
 
-`classic123-tui` builds a `LayoutMap` (TUI cell rects → semantic `HitTarget`) during every layout pass, from the same layout that draws the frame—eliminating coordinate drift on resize or font change. Input reaches it in TUI cell units on both targets:
+`proto123-tui` builds a `LayoutMap` (TUI cell rects → semantic `HitTarget`) during every layout pass, from the same layout that draws the frame—eliminating coordinate drift on resize or font change. Input reaches it in TUI cell units on both targets:
 
-- **Web:** browser pixel coordinates `(x, y)` (scaled by `devicePixelRatio`) are converted by `classic123-tui::pixel_to_cell` using the current `CellMetrics`.
-- **Native terminal:** `apps/classic123-term` enables mouse capture on start (SGR extended mouse reporting with press, release, drag, motion, and wheel events). The terminal already reports TUI cell coordinates. Inside `tmux`/`screen`, mouse passthrough must be enabled by the user; where the terminal reports no mouse events, keyboard operation stays complete.
+- **Web:** browser pixel coordinates `(x, y)` (scaled by `devicePixelRatio`) are converted by `proto123-tui::pixel_to_cell` using the current `CellMetrics`.
+- **Native terminal:** `apps/proto123-term` enables mouse capture on start (SGR extended mouse reporting with press, release, drag, motion, and wheel events). The terminal already reports TUI cell coordinates. Inside `tmux`/`screen`, mouse passthrough must be enabled by the user; where the terminal reports no mouse events, keyboard operation stays complete.
 - **Gestures are derived in the shared core:** browsers and terminals both deliver raw presses, so `InputMapper` derives double-click (same cell within the double-click interval), drag, and hover from timestamped raw events. Both targets therefore behave identically and share the same tests.
 
 ### 4.1 Grid Mouse Controls
@@ -180,7 +180,7 @@ All labels follow [`docs/feature-names.md`](feature-names.md), use unique single
 
 ## 6. Clipboard & Accessibility Guarantees
 
-- **Clipboard Interop:** `Ctrl+C` / `Ctrl+X` copies internal cell/formula payloads (preserving relative reference shifting inside Classic123). On the web it also writes RFC-compliant TSV to the browser clipboard; on native it writes TSV to the system clipboard through the terminal (OSC 52) where the terminal supports it, and the internal clipboard always works. Pasting external TSV/CSV (browser paste or terminal bracketed paste) parses cleanly into the target range.
+- **Clipboard Interop:** `Ctrl+C` / `Ctrl+X` copies internal cell/formula payloads (preserving relative reference shifting inside Proto123). On the web it also writes RFC-compliant TSV to the browser clipboard; on native it writes TSV to the system clipboard through the terminal (OSC 52) where the terminal supports it, and the internal clipboard always works. Pasting external TSV/CSV (browser paste or terminal bracketed paste) parses cleanly into the target range.
 - **High Contrast & Non-Color Cues:** Default TUI themes maintain at least **4.5:1** text contrast and **3:1** border/focus contrast. Active cell, selection range, hovered menu item, and error states always include explicit structural cues (inverted background, brackets, mode badge, error token)—never color alone.
 - **Native terminal:** Mode badge, active cell, value, and status messages are plain text in the control line and status bar, so terminal screen readers can read them; a monochrome/ASCII theme covers limited terminals.
 - **Screen Reader Bridge (web, Zero Cell DOM):** A single hidden `<div aria-live="polite" class="sr-only">` in `web/index.html` receives concise status updates from WASM on cell move, mode switch, menu highlight, and error notification (e.g., `"C4, formula =SUM(C1:C3), value 150, READY"`).
