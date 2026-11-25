@@ -14,14 +14,15 @@ Phase 0 output. Every "NEEDS CLARIFICATION" from the Technical Context is resolv
 
 - **Decision**: Ratzilla 0.3 **`CanvasBackend`** draws the shared Ratatui buffer on one `<canvas>`. Ratzilla's DOM backend is never used; its WebGL2 backend is not used in this slice.
 - **Rationale**: Ratzilla's `CanvasBackend::flush` compares the new buffer to the previous one and redraws only changed cells (`resolve_changed_cells`), batching background and glyph passes to cut WASM↔JS calls — exactly FR-033. Combined with Ratatui's own `Terminal` diff, a cursor move touches a handful of cells.
-- **Known properties to design around**: fixed cell size 10×19 CSS px with a 5 px origin translate and `16px monospace` font; exposes `cell_size_css_px()`; scales by `devicePixelRatio` internally.
+- **Known properties to design around** (checked against ratzilla 0.3.1 source, 2026-11-25): fixed cell size 10×19 CSS px (`CELL_WIDTH`/`CELL_HEIGHT` constants) with a 5 px origin translate and a hard-coded `16px monospace` font; `CanvasBackendOptions` has only `grid_id` and `size`, and nothing public changes the font after creation; exposes `cell_size_css_px()`; scales by `devicePixelRatio` internally.
+- **Font as theme tokens** (FR-034): `GridMetrics` holds `font_px = 16`, `font_family = "monospace"`, `cell_px = 10×19`, `origin_px = 5`, matching the constants above. `CellMetrics` is built from these tokens, and the wasm app reconciles them against `cell_size_css_px()` at startup and on resize: a mismatch (for example after a Ratzilla upgrade) is a visible error, and hit-testing follows the backend. Per-theme font sizes would need a Ratzilla fork or a custom painter; both are out of scope here (`docs/backlog.md`).
 - **Alternatives**: Custom Canvas 2D painter — allowed only if Ratzilla misses 16 ms; no evidence it will. WebGL2 (beamterm) — faster but heavier and needs a font atlas; revisit only if Canvas misses the budget.
 
 ## R3 — Input path on the web (bypass Ratzilla events)
 
 - **Decision**: `web/host.js` attaches `keydown`, `pointerdown/move/up`, `wheel`, `ResizeObserver`, and DPR-change listeners and forwards **primitive values plus `event.timeStamp`** to `#[wasm_bindgen]` exports. Ratzilla's `on_key_event`/`on_mouse_event` are not used.
 - **Rationale**: Ratzilla's `MouseEvent` is already converted to cell coordinates (violates "pixel→cell in `proto123-tui`, unit-tested", FR-031), carries no timestamp (FR-030 needs raw timestamped events), and has no wheel kind (FR-028). Forwarding raw values keeps the host thin and the interpretation in Rust.
-- **Pixel mapping inputs**: host sends `offsetX/offsetY` in CSS px and `devicePixelRatio`; `proto123-tui::CellMetrics { cell_w, cell_h, origin_x, origin_y, dpr }` is built by the wasm app from Ratzilla's `cell_size_css_px()` and its 5 px origin. `pixel_to_cell` is pure and unit-tested for DPR 1/1.25/2, edges, negative and out-of-canvas points.
+- **Pixel mapping inputs**: host sends `offsetX/offsetY` in CSS px and `devicePixelRatio`; `proto123-tui::CellMetrics { cell_w, cell_h, origin_x, origin_y, dpr }` is built from the theme's `GridMetrics` font tokens and reconciled against Ratzilla's `cell_size_css_px()` (see R2). `pixel_to_cell` is pure and unit-tested for DPR 1/1.25/2, edges, negative and out-of-canvas points.
 - **Alternatives**: Use Ratzilla events and add timestamps in Rust via `performance.now()` — rejected: still no wheel, and pixel mapping would stay outside our tested function.
 
 ## R4 — Native terminal stack

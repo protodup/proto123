@@ -46,7 +46,7 @@ Entities from the spec's Key Entities, placed in their owning crate. Field types
 | `GlyphSet` | `Box` (single-line `─│┌┐└┘├┤┬┴┼`) \| `Ascii` (`-|+`) |
 | `ThemeTokens` | named `(fg, bg)` pairs: `grid`, `header`, `active_cell`, `selection`, `menu`, `menu_highlight`, `control_line`, `status`, `badge`, `error`, `border` |
 | `Theme` | `{ id: ThemeId, tokens: ThemeTokens, glyphs: GlyphSet, allow_bold: bool, metrics: GridMetrics }` |
-| `GridMetrics` | character-cell layout metrics: `col_width: u16` (= 9, FR-006), `min_cols: u16` (= 80), `min_rows: u16` (= 24); identical in every built-in theme in this slice |
+| `GridMetrics` | character-cell metrics: `col_width: u16` (= 9, FR-006), `min_cols: u16` (= 80), `min_rows: u16` (= 24); web font tokens `font_px: u16` (= 16, CSS px), `font_family: &'static str` (= `"monospace"`), `cell_px: (u16, u16)` (= 10 × 19 CSS px), `origin_px: u16` (= 5 CSS px). The web values must equal what Ratzilla 0.3 draws (research R2), so they are identical in every built-in theme in this slice. Native ignores the font tokens: the terminal emulator owns the font (FR-050) |
 | `ThemeId` | `HighContrast` \| `Console16` \| `Mono` (cycle order) |
 | `CapabilityProfile` | `Full` \| `Ansi16` \| `Console` \| `Conservative`; `detect(term, colorterm)`; `default_theme()`, `default_glyphs()` |
 
@@ -173,7 +173,7 @@ DIALOG --Enter/OK--> run command --> READY;  DIALOG --Esc/Cancel--> READY (no ch
 
 | Entity | Fields |
 |---|---|
-| `CellMetrics` | `cell_w: f64, cell_h: f64, origin_x: f64, origin_y: f64, dpr: f64` (CSS px). Web only: the pixel size of one character cell, measured from the backend's font; grid layout metrics come from `Theme.metrics` |
+| `CellMetrics` | `cell_w: f64, cell_h: f64, origin_x: f64, origin_y: f64, dpr: f64` (CSS px). Web only. `CellMetrics::from_theme(&GridMetrics, dpr)` takes `cell_w`/`cell_h` from `GridMetrics.cell_px` and `origin_x`/`origin_y` from `GridMetrics.origin_px`. `reconcile(backend_cell_css)` compares them with the backend's reported cell size: on a mismatch it returns the backend's values (so pointer targets stay aligned with what is drawn) plus a mismatch flag that the engine shows as the error status `diag.fontMetricsMismatch` (FR-043) |
 | `pixel_to_cell(x, y, &CellMetrics, cols, rows) -> Option<(u16,u16)>` | pure; `None` outside the grid |
 | `HitTarget` | `GridCell(CellAddr)`, `ColHeader(u32)`, `RowHeader(u32)`, `FormulaBar { char_index }`, `AddressBox`, `MenuItem { level, index }`, `PromptField { char_index }`, `PromptButton(Ok/Cancel/Yes/No)`, `GridEdge(Up/Down/Left/Right)`, `None` |
 | `LayoutMap` | per frame: list of `(Rect, HitTarget-producer)`; `hit(col,row) -> HitTarget` |
