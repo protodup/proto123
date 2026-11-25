@@ -1,6 +1,6 @@
 # Proto123 Command & Input Parity Checklist
 
-> **Last updated:** 2026-11-24 · **Generated / verified by:** `cargo xtask parity` & `cargo xtask menu-commands`
+> **Last updated:** 2026-11-25 · **Generated / verified by:** `cargo xtask parity` & `cargo xtask menu-commands`
 > **Policy Reference:** `AGENTS.md` Rules 14 & 22 · `.specify/memory/constitution.md` Principle III
 
 Every state-mutating action in **Proto123** MUST be registered as a typed `CommandId` in `proto123-engine`. This checklist tracks parity across **Keyboard**, **Mouse**, **Slash Command Bar (`/`)**, and **Headless CLI** so no interaction path lags behind or becomes unreachable.
@@ -28,7 +28,8 @@ Every state-mutating action in **Proto123** MUST be registered as a typed `Comma
 | `nav.jumpHome` | Jump to `A1` or row start | `Home` / `Ctrl+Home` | `N/A` | `N/A` | `exec` | `[ ]` |
 | `nav.jumpEdge` | Jump to contiguous data boundary | `End` then Arrow | `N/A` | `N/A` | `exec` | `[ ]` |
 | `nav.gotoCell` | Prompt and jump to target address | `F5` | Click address box | `/Range/Goto` | `exec` | `[ ]` |
-| `nav.extendSelection` | Select rectangular cell range | `Shift+Arrows` | Click-and-drag across cells | `N/A` | `exec` | `[ ]` |
+| `nav.extendSelection` | Select rectangular cell range | `Shift+Arrows` / Arrows in extend mode (`F8`) | Click-and-drag across cells | `N/A` | `exec` | `[ ]` |
+| `nav.toggleExtendMode` | Anchor selection (or `POINT` reference) so plain arrows extend it; shows `[EXT]` | `F8` (`Esc` also ends it) | `N/A` (drag selects directly) | `N/A` (`F8` reaches every target, including the Linux console) | `N/A` (interactive state) | `[ ]` |
 | `nav.selectRow` | Select entire active row | `Shift+Space` | Click row number header | `N/A` | `exec` | `[ ]` |
 | `nav.selectColumn` | Select entire active column | `Ctrl+Space` | Click column letter header | `N/A` | `exec` | `[ ]` |
 | `nav.switchSheet` | Switch active worksheet tab | `Ctrl+PgUp` / `Ctrl+PgDn` | Click sheet tab in status bar | `/Worksheet/Switch` | `exec` | `[ ]` |
@@ -42,7 +43,7 @@ Every state-mutating action in **Proto123** MUST be registered as a typed `Comma
 | `cell.beginEdit` | Enter `EDIT` mode on active cell | `F2` | Double-click cell / click formula bar | `N/A` | `N/A` | `[ ]` |
 | `cell.commitEdit` | Parse input, update DAG, return to `READY` | `Enter` / Arrow (in `VALUE`/`LABEL`) | Click confirm or another cell | `N/A` | `exec` | `[ ]` |
 | `cell.cancelEdit` | Discard uncommitted input buffer | `Esc` | Click cancel / press `Esc` | `N/A` | `N/A` | `[ ]` |
-| `cell.pointInsertRef` | Insert clicked/navigated ref while in `POINT` mode | Arrow / `Shift+Arrow` after operator | Click or drag cells during formula entry | `N/A` | `N/A` | `[ ]` |
+| `cell.pointInsertRef` | Insert clicked/navigated ref while in `POINT` mode | Arrow / `Shift+Arrow` (or `F8` then Arrows) after operator | Click or drag cells during formula entry | `N/A` | `N/A` | `[ ]` |
 | `cell.toggleAbsRef` | Cycle `A1` -> `$A$1` -> `A$1` -> `$A1` | `F4` (in `EDIT`/`POINT`) | `N/A` | `N/A` | `N/A` | `[ ]` |
 | `edit.undo` | Revert last `proto123-ops` delta | `Ctrl+Z` / `Alt+F4` classic undo | Click `/Edit/Undo` | `/Edit/Undo` | `exec` | `[ ]` |
 | `edit.redo` | Reapply undone `proto123-ops` delta | `Ctrl+Y` / `Ctrl+Shift+Z` | Click `/Edit/Redo` | `/Edit/Redo` | `exec` | `[ ]` |

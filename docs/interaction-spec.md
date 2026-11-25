@@ -73,6 +73,7 @@ Every feature MUST be 100% reachable by keyboard with zero focus traps, on both 
 |---|---|---|
 | `READY` | `Arrow Keys` | `nav.moveRelative` (1 cell) |
 | `READY` | `Shift + Arrows` | `nav.extendSelection` (rectangular range) |
+| `READY` | `F8` | `nav.toggleExtendMode`: anchors the selection at the active cell; plain arrows then extend it (`nav.extendSelection`) until `F8` or `Esc` ends the mode, keeping the selection. The status bar shows `[EXT]` while the mode is on |
 | `READY` | `Tab` / `Shift+Tab` | Move right / left 1 cell |
 | `READY` | `Enter` / `Shift+Enter` | Move down / up 1 cell |
 | `READY` | `PgUp` / `PgDn` | `nav.pageScroll` vertical |
@@ -93,6 +94,7 @@ Every feature MUST be 100% reachable by keyboard with zero focus traps, on both 
 | `EDIT`/`VALUE`/`LABEL` | `Tab` / `Shift+Tab` | `cell.commitEdit` and move right / left |
 | `EDIT`/`VALUE`/`LABEL` | `Esc` | `cell.cancelEdit` |
 | `EDIT`/`POINT` | `F4` | `cell.toggleAbsRef` (`A1` -> `$A$1` -> `A$1` -> `$A1`) |
+| `POINT` | `F8` | `nav.toggleExtendMode`: anchors the live reference; plain arrows then extend it to a range (`B2:D5`) |
 | `MENU` | First letter of item | Jump directly to submenu or execute command |
 | `MENU` | `Left` / `Right` + `Enter` | Highlight adjacent item / confirm |
 | `MENU` | `Esc` | `menu.back` (up one level or exit to `READY`) |
@@ -194,7 +196,7 @@ The native target MUST be fully usable without X11 or Wayland: in the Linux virt
 - **Colors:** A 16-color theme MUST exist that uses only the standard ANSI 16 colors, never 256-color or truecolor, and still meets the contrast rules in §6 against the console's default palette. It MUST NOT depend on bold or underline for emphasis, because the console shows them as color changes rather than as font styles.
 - **Glyphs:** The console profile MUST draw borders using only single-line box-drawing characters (horizontal, vertical, corners, tees, cross), which common console fonts include, and an ASCII glyph set (`+`, `-`, `|`) MUST always be available. Every indicator of state (active cell, selection, hover, mode) MUST be drawn with those glyphs, brackets, or inverted video, never with symbols that are absent from console fonts (arrows, check marks, emoji, wide characters). Cell contents are never changed; a character the console font lacks is shown however the terminal renders it.
 - **No mouse:** The Linux console does not send mouse reports to applications, and Proto123 does not link `libgpm`. Every feature MUST work by keyboard alone; help text and status hints MUST NOT assume a mouse is available.
-- **Limited key combinations:** The Linux console does not report some modified keys (for example `Shift+Arrow`, `Ctrl+PgUp`, ``Ctrl+` ``). Every command bound to such a combination MUST also be reachable through the `/` menu, and range selection MUST be possible without `Shift`+arrows (the plain-key alternative is defined together with the selection feature and listed in [`docs/parity-checklist.md`](parity-checklist.md)).
+- **Limited key combinations:** The Linux console does not report some modified keys (for example `Shift+Arrow`, `Ctrl+PgUp`, ``Ctrl+` ``). Every command bound to such a combination MUST also be reachable through the `/` menu, and range selection MUST be possible without `Shift`+arrows: `F8` (`nav.toggleExtendMode`, §3) anchors the selection in `READY` or the reference in `POINT`, and plain arrows then extend it.
 - **Clipboard:** With no graphical session there is no system clipboard and the console does not support OSC 52. The internal clipboard MUST keep working, and the status bar MUST NOT report that data reached the system clipboard when it did not.
 - **Screen size:** The console may be 80×25 or larger depending on the framebuffer; the 80×24 baseline in §1 covers it.
 - **Verification:** Automated tests render frames with the console profile into a Ratatui test backend and assert that the UI chrome uses only ANSI 16 colors and glyphs from the allowed sets. Before each release, a manual smoke test runs `proto123-term` in a real Linux virtual console (open, edit, `/` menu, select a range, save `.ods`) using only the keyboard.
