@@ -104,7 +104,7 @@ Every feature MUST be 100% reachable by keyboard with zero focus traps, on both 
 `proto123-tui` builds a `LayoutMap` (TUI cell rects → semantic `HitTarget`) during every layout pass, from the same layout that draws the frame—eliminating coordinate drift on resize or font change. Input reaches it in TUI cell units on both targets:
 
 - **Web:** browser pixel coordinates `(x, y)` (scaled by `devicePixelRatio`) are converted by `proto123-tui::pixel_to_cell` using the current `CellMetrics`.
-- **Native terminal:** `apps/proto123-term` enables mouse capture on start (SGR extended mouse reporting with press, release, drag, motion, and wheel events). The terminal already reports TUI cell coordinates. Inside `tmux`/`screen`, mouse passthrough must be enabled by the user; where the terminal reports no mouse events, keyboard operation stays complete.
+- **Native terminal:** `apps/proto123-term` enables mouse capture on start (SGR extended mouse reporting with press, release, drag, motion, and wheel events). The terminal already reports TUI cell coordinates. Inside `tmux`/`screen`, mouse passthrough must be enabled by the user; where the terminal reports no mouse events (for example the Linux virtual console, see §7), keyboard operation stays complete.
 - **Gestures are derived in the shared core:** browsers and terminals both deliver raw presses, so `InputMapper` derives double-click (same cell within the double-click interval), drag, and hover from timestamped raw events. Both targets therefore behave identically and share the same tests.
 
 ### 4.1 Grid Mouse Controls
@@ -182,5 +182,20 @@ All labels follow [`docs/feature-names.md`](feature-names.md), use unique single
 
 - **Clipboard Interop:** `Ctrl+C` / `Ctrl+X` copies internal cell/formula payloads (preserving relative reference shifting inside Proto123). On the web it also writes RFC-compliant TSV to the browser clipboard; on native it writes TSV to the system clipboard through the terminal (OSC 52) where the terminal supports it, and the internal clipboard always works. Pasting external TSV/CSV (browser paste or terminal bracketed paste) parses cleanly into the target range.
 - **High Contrast & Non-Color Cues:** Default TUI themes maintain at least **4.5:1** text contrast and **3:1** border/focus contrast. Active cell, selection range, hovered menu item, and error states always include explicit structural cues (inverted background, brackets, mode badge, error token)—never color alone.
-- **Native terminal:** Mode badge, active cell, value, and status messages are plain text in the control line and status bar, so terminal screen readers can read them; a monochrome/ASCII theme covers limited terminals.
+- **Native terminal:** Mode badge, active cell, value, and status messages are plain text in the control line and status bar, so terminal screen readers can read them; a monochrome/ASCII theme covers limited terminals (see §7).
+
+---
+
+## 7. Minimal Terminals (Linux Console Without a Graphical Session)
+
+The native target MUST be fully usable without X11 or Wayland: in the Linux virtual console (VT, `TERM=linux`), over SSH, inside `tmux`/`screen`, and in containers. This is a supported and tested environment, not best effort.
+
+- **Capability profile:** `apps/proto123-term` detects the terminal's capabilities at startup (`TERM`, `COLORTERM`) and passes them to the core, which selects the matching theme and glyph set through theme tokens. The user MUST be able to override the detected profile. With `TERM=linux`, the console profile below is the default.
+- **Colors:** A 16-color theme MUST exist that uses only the standard ANSI 16 colors, never 256-color or truecolor, and still meets the contrast rules in §6 against the console's default palette. It MUST NOT depend on bold or underline for emphasis, because the console shows them as color changes rather than as font styles.
+- **Glyphs:** The console profile MUST draw borders using only single-line box-drawing characters (horizontal, vertical, corners, tees, cross), which common console fonts include, and an ASCII glyph set (`+`, `-`, `|`) MUST always be available. Every indicator of state (active cell, selection, hover, mode) MUST be drawn with those glyphs, brackets, or inverted video, never with symbols that are absent from console fonts (arrows, check marks, emoji, wide characters). Cell contents are never changed; a character the console font lacks is shown however the terminal renders it.
+- **No mouse:** The Linux console does not send mouse reports to applications, and Proto123 does not link `libgpm`. Every feature MUST work by keyboard alone; help text and status hints MUST NOT assume a mouse is available.
+- **Limited key combinations:** The Linux console does not report some modified keys (for example `Shift+Arrow`, `Ctrl+PgUp`, ``Ctrl+` ``). Every command bound to such a combination MUST also be reachable through the `/` menu, and range selection MUST be possible without `Shift`+arrows (the plain-key alternative is defined together with the selection feature and listed in [`docs/parity-checklist.md`](parity-checklist.md)).
+- **Clipboard:** With no graphical session there is no system clipboard and the console does not support OSC 52. The internal clipboard MUST keep working, and the status bar MUST NOT report that data reached the system clipboard when it did not.
+- **Screen size:** The console may be 80×25 or larger depending on the framebuffer; the 80×24 baseline in §1 covers it.
+- **Verification:** Automated tests render frames with the console profile into a Ratatui test backend and assert that the UI chrome uses only ANSI 16 colors and glyphs from the allowed sets. Before each release, a manual smoke test runs `proto123-term` in a real Linux virtual console (open, edit, `/` menu, select a range, save `.ods`) using only the keyboard.
 - **Screen Reader Bridge (web, Zero Cell DOM):** A single hidden `<div aria-live="polite" class="sr-only">` in `web/index.html` receives concise status updates from WASM on cell move, mode switch, menu highlight, and error notification (e.g., `"C4, formula =SUM(C1:C3), value 150, READY"`).

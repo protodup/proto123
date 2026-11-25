@@ -110,9 +110,18 @@ it to any compliant suite without loss.
   target MUST save it to the local filesystem. Both MUST expose an opt-in hook to send the updated
   binary to a configured endpoint via HTTP `PUT` or `POST`. No upload occurs unless explicitly
   configured.
+- **Minimal terminals**: The native target MUST be fully usable without a graphical session: in
+  the Linux virtual console (no X11 or Wayland), over SSH, inside `tmux`/`screen`, and in
+  containers. In that environment it MUST provide a 16-color theme (standard ANSI 16 colors only)
+  that meets the contrast rules, a glyph set limited to single-line box drawing plus an
+  always-available ASCII set, complete keyboard operation with no mouse, `/` menu access to every
+  command bound to a modified key the console does not report, and an internal clipboard that
+  never reports system-clipboard success it did not achieve. Details are in
+  `docs/interaction-spec.md` §7.
 
 **Rationale**: Static hosting and a local binary are cheap, private, and durable; data leaves the
-user's machine only when the user decides.
+user's machine only when the user decides. A terminal spreadsheet must also work where only a
+text console exists, such as servers, rescue systems, and remote sessions.
 
 ### VI. Efficient Data & Calculation Engine
 
@@ -130,7 +139,8 @@ not with the theoretical grid size.
 
 - **Language**: Rust, latest stable toolchain and edition.
 - **Targets**: `wasm32-unknown-unknown` built with `wasm-pack` or `trunk`, and native binaries for
-  Linux, macOS, and Windows.
+  Linux, macOS, and Windows. On Linux, the native target includes the virtual console without a
+  graphical session; the native binary MUST NOT require X11, Wayland, or GPU libraries.
 - **TUI rendering**: Ratatui with a target-specific backend — Ratzilla (Canvas/WebGL) on the web and
   crossterm in the native terminal — so UI layout code is written once. A custom Rust Canvas 2D
   character-grid renderer is permitted on the web only if the plan shows Ratzilla cannot meet
@@ -164,6 +174,8 @@ include a Constitution Check that explicitly verifies:
 5. Generated `.ods` files remain ODF-compliant, preserving data types, multiple sheets, and
    OpenFormula syntax (Principle IV).
 6. The 16 ms input-to-frame budget and the wasm size measurement are addressed (Principle I).
+7. UI changes work in the minimal-terminal profile: 16 colors, restricted glyph set, and keyboard
+   only (Principle V).
 
 A feature is complete only when automated Rust tests (`cargo test`) pass and cover, as applicable
 to the change: the formula engine, the dependency graph (including cycle detection),
@@ -185,4 +197,4 @@ pixel-to-TUI and cell-to-element hit-testing, and `.ods` generation with round-t
   Quality Gates above. Any justified deviation MUST be recorded in the plan's Complexity Tracking
   with the reason and the simpler alternative that was rejected.
 
-**Version**: 1.1.1 | **Ratified**: 2026-11-24 | **Last Amended**: 2026-11-24
+**Version**: 1.2.0 | **Ratified**: 2026-11-24 | **Last Amended**: 2026-11-25
