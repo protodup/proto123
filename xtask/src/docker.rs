@@ -65,24 +65,29 @@ impl Drop for ContainerGuard {
     }
 }
 
+fn http_get_once(addr: &str, path: &str) -> Result<HttpResponse, String> {
+    let mut stream = TcpStream::connect(addr).map_err(|e| format!("connect failed: {e}"))?;
+    let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
+    let req = format!("GET {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");
+    stream
+        .write_all(req.as_bytes())
+        .map_err(|e| format!("write failed: {e}"))?;
+    let mut bytes = Vec::new();
+    stream
+        .read_to_end(&mut bytes)
+        .map_err(|e| format!("read failed: {e}"))?;
+    if bytes.is_empty() {
+        return Err("empty HTTP response".to_owned());
+    }
+    let text = String::from_utf8_lossy(&bytes);
+    parse_http_response(&text)
+}
+
 fn http_get(addr: &str, path: &str) -> Result<HttpResponse, String> {
     let mut last_err = None;
-    for _ in 0..20 {
-        match TcpStream::connect(addr) {
-            Ok(mut stream) => {
-                let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
-                let req =
-                    format!("GET {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");
-                stream
-                    .write_all(req.as_bytes())
-                    .map_err(|e| format!("write failed: {e}"))?;
-                let mut bytes = Vec::new();
-                stream
-                    .read_to_end(&mut bytes)
-                    .map_err(|e| format!("read failed: {e}"))?;
-                let text = String::from_utf8_lossy(&bytes);
-                return parse_http_response(&text);
-            }
+    for _ in 0..40 {
+        match http_get_once(addr, path) {
+            Ok(resp) => return Ok(resp),
             Err(e) => {
                 last_err = Some(e);
                 thread::sleep(Duration::from_millis(150));
@@ -90,8 +95,8 @@ fn http_get(addr: &str, path: &str) -> Result<HttpResponse, String> {
         }
     }
     Err(format!(
-        "could not connect to {addr}: {}",
-        last_err.map_or_else(|| "unknown".to_owned(), |e| e.to_string())
+        "request to {addr}{path} failed: {}",
+        last_err.unwrap_or_else(|| "unknown".to_owned())
     ))
 }
 

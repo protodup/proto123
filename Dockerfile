@@ -22,6 +22,23 @@ RUN set -eux; \
     tar -xzf "/tmp/${asset}" -C /usr/local/bin trunk; \
     rm -f "/tmp/${asset}" "/tmp/${asset}.sha256"
 
+ARG BINARYEN_VERSION=version_131
+RUN set -eux; \
+    arch="$(dpkg --print-architecture)"; \
+    case "$arch" in \
+      amd64) target="x86_64-linux" ;; \
+      arm64) target="aarch64-linux" ;; \
+      *) echo "unsupported arch: $arch" >&2; exit 1 ;; \
+    esac; \
+    asset="binaryen-${BINARYEN_VERSION}-${target}.tar.gz"; \
+    url="https://github.com/WebAssembly/binaryen/releases/download/${BINARYEN_VERSION}/${asset}"; \
+    curl -fsSL "$url" -o "/tmp/${asset}"; \
+    curl -fsSL "${url}.sha256" -o "/tmp/${asset}.sha256"; \
+    echo "$(awk '{print $1}' "/tmp/${asset}.sha256")  /tmp/${asset}" | sha256sum -c -; \
+    mkdir -p "/root/.cache/trunk/wasm-opt-${BINARYEN_VERSION}"; \
+    tar -xzf "/tmp/${asset}" --strip-components=1 -C "/root/.cache/trunk/wasm-opt-${BINARYEN_VERSION}"; \
+    rm -f "/tmp/${asset}" "/tmp/${asset}.sha256"
+
 WORKDIR /app
 COPY Cargo.toml Cargo.lock rust-toolchain.toml clippy.toml Trunk.toml ./
 COPY .cargo ./.cargo
