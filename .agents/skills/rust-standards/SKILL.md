@@ -1,9 +1,7 @@
 ---
 name: rust-standards
-description: 
----
-## name: rust-systems-engineering
 description: Gold standard software engineering practices in Rust for production-grade code. Focuses on memory safety, strict typing, explicit error handling, data-race-free concurrency, predictable performance, and rigorous automated verification.
+---
 
 # Rust Systems Engineering Skill
 
