@@ -66,7 +66,7 @@ When receiving any implementation, bug-fixing, or refactoring task, strictly fol
 
 ### Step 1: Architecture and Dependency Analysis
 
-1. Inspect `Cargo.toml` and the directory structure before writing any code.
+1. Inspect `../../../../Cargo.toml` and the directory structure before writing any code.
 2. Check existing crate versions and maintain consistency with the project's ecosystem.
 3. Plan data types and function signatures before implementation.
 
@@ -115,5 +115,5 @@ Before delivering the final response to the user, audit the generated code again
 * [ ] Do all public types derive `Debug` and have `///` documentation?
 * [ ] Are allocations (`.clone()`, `String`, `Vec`) genuinely necessary, or can they be replaced with references/slices?
 * [ ] Is the asynchronous code free of blocking calls?
-* [ ] Is `Cargo.toml` clean, free of unused dependencies, and configured with minimal features (`default-features = false` where appropriate)?
+* [ ] Is `../../../../Cargo.toml` clean, free of unused dependencies, and configured with minimal features (`default-features = false` where appropriate)?
 * [ ] Have all *Quality Gate* commands (`fmt`, `clippy`, `test`) been executed and passed successfully?
