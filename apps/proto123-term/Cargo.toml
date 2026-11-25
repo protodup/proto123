@@ -1,0 +1,23 @@
+[package]
+name = "proto123-term"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "proto123-term"
+path = "src/main.rs"
+
+[dependencies]
+proto123-theme = { path = "../../crates/proto123-theme" }
+proto123-engine = { path = "../../crates/proto123-engine" }
+proto123-tui = { path = "../../crates/proto123-tui" }
+ratatui = { workspace = true, features = ["crossterm"] }
+crossterm = { workspace = true }
+
+[dev-dependencies]
+proto123-testkit = { path = "../../crates/proto123-testkit" }

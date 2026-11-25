@@ -1,0 +1,12 @@
+[package]
+name = "proto123-value"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+proto123-coord = { path = "../proto123-coord" }

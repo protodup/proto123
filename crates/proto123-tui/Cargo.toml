@@ -1,0 +1,18 @@
+[package]
+name = "proto123-tui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+proto123-coord = { path = "../proto123-coord" }
+proto123-value = { path = "../proto123-value" }
+proto123-model = { path = "../proto123-model" }
+proto123-theme = { path = "../proto123-theme" }
+proto123-engine = { path = "../proto123-engine" }
+ratatui = { workspace = true }
+unicode-width = { workspace = true }

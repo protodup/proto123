@@ -1,0 +1,16 @@
+[package]
+name = "proto123-ops"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+proto123-coord = { path = "../proto123-coord" }
+proto123-value = { path = "../proto123-value" }
+proto123-formula = { path = "../proto123-formula" }
+proto123-model = { path = "../proto123-model" }
+proto123-calc = { path = "../proto123-calc" }
