@@ -77,13 +77,20 @@ pub(crate) fn lex(src: &[char]) -> Result<Vec<Token>, ParseError> {
             }
             '#' => {
                 let rest: String = src.iter().skip(i).collect();
-                let hit = ERROR_LITERALS.iter().find(|(text, _)| rest.starts_with(text));
+                let hit = ERROR_LITERALS
+                    .iter()
+                    .find(|(text, _)| rest.starts_with(text));
                 match hit {
                     Some((text, kind)) => {
                         i += text.chars().count();
                         Tok::ErrorLit(*kind)
                     }
-                    None => return Err(ParseError { pos, kind: ParseErrorKind::UnknownToken }),
+                    None => {
+                        return Err(ParseError {
+                            pos,
+                            kind: ParseErrorKind::UnknownToken,
+                        });
+                    }
                 }
             }
             c if c.is_ascii_digit() || c == '.' => {
@@ -112,7 +119,12 @@ pub(crate) fn lex(src: &[char]) -> Result<Vec<Token>, ParseError> {
                 let text: String = src.get(start..i).unwrap_or(&[]).iter().collect();
                 match text.parse::<f64>() {
                     Ok(n) => Tok::Number(n),
-                    Err(_) => return Err(ParseError { pos, kind: ParseErrorKind::UnknownToken }),
+                    Err(_) => {
+                        return Err(ParseError {
+                            pos,
+                            kind: ParseErrorKind::UnknownToken,
+                        });
+                    }
                 }
             }
             c if is_word_start(c) => {
@@ -122,7 +134,12 @@ pub(crate) fn lex(src: &[char]) -> Result<Vec<Token>, ParseError> {
                 }
                 Tok::Word(src.get(start..i).unwrap_or(&[]).iter().collect())
             }
-            _ => return Err(ParseError { pos, kind: ParseErrorKind::UnknownToken }),
+            _ => {
+                return Err(ParseError {
+                    pos,
+                    kind: ParseErrorKind::UnknownToken,
+                });
+            }
         };
         out.push(Token { tok, pos });
     }

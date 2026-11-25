@@ -8,7 +8,9 @@ fn row_text(s: &Session, y: u16) -> String {
     let area = Rect::new(0, 0, 80, 24);
     let mut buf = Buffer::empty(area);
     render(s, area, &mut buf);
-    (0..80).filter_map(|x| buf.cell((x, y)).map(|c| c.symbol().to_owned())).collect()
+    (0..80)
+        .filter_map(|x| buf.cell((x, y)).map(|c| c.symbol().to_owned()))
+        .collect()
 }
 
 fn session_with(label: &str, at_col: u16) -> Session {
@@ -28,7 +30,11 @@ fn session_with(label: &str, at_col: u16) -> Session {
 #[test]
 fn long_label_spills_over_empty_neighbours() {
     let s = session_with("Quarterly total", 0);
-    assert!(row_text(&s, 3).contains("Quarterly total"), "{}", row_text(&s, 3));
+    assert!(
+        row_text(&s, 3).contains("Quarterly total"),
+        "{}",
+        row_text(&s, 3)
+    );
 }
 
 #[test]
@@ -71,7 +77,11 @@ fn error_tokens_use_the_error_token_colour_and_the_error_status_too() {
     // "#DIV/0!" is right-aligned in A1's 9 columns: starts at x = 5 + 2.
     let cell = buf.cell((7, 3)).expect("A1 drawn");
     assert_eq!(cell.symbol(), "#");
-    assert_eq!(cell.fg, ratatui::style::Color::Rgb(255, 255, 0), "error token colour");
+    assert_eq!(
+        cell.fg,
+        ratatui::style::Color::Rgb(255, 255, 0),
+        "error token colour"
+    );
 
     // A syntax error puts the error status in the error token colour as well.
     s.dispatch(Command::CellBeginEntry('='));
@@ -80,5 +90,9 @@ fn error_tokens_use_the_error_token_colour_and_the_error_status_too() {
     let mut buf = Buffer::empty(area);
     render(&s, area, &mut buf);
     let status = buf.cell((0, 23)).expect("status drawn");
-    assert_eq!(status.fg, ratatui::style::Color::Rgb(255, 255, 0), "error status colour");
+    assert_eq!(
+        status.fg,
+        ratatui::style::Color::Rgb(255, 255, 0),
+        "error status colour"
+    );
 }

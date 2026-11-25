@@ -2,8 +2,12 @@
 //! Nothing here knows about a browser, terminal, or widget library.
 
 mod builtin;
+mod contrast;
+mod profile;
 
-pub use builtin::high_contrast;
+pub use builtin::{console16, for_id, high_contrast, mono};
+pub use contrast::{VGA_PALETTE, contrast_ratio, relative_luminance, to_rgb};
+pub use profile::CapabilityProfile;
 
 /// The 16 ANSI colors (terminals map these to their own palette).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -37,6 +41,16 @@ pub enum Color {
 pub enum GlyphSet {
     Box,
     Ascii,
+}
+
+impl GlyphSet {
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "box" => Some(Self::Box),
+            "ascii" => Some(Self::Ascii),
+            _ => None,
+        }
+    }
 }
 
 /// A foreground/background pair for one named token.
@@ -109,6 +123,23 @@ impl ThemeId {
             Self::HighContrast => Self::Console16,
             Self::Console16 => Self::Mono,
             Self::Mono => Self::HighContrast,
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "high-contrast" => Some(Self::HighContrast),
+            "console16" => Some(Self::Console16),
+            "mono" => Some(Self::Mono),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::HighContrast => "high-contrast",
+            Self::Console16 => "console16",
+            Self::Mono => "mono",
         }
     }
 }

@@ -4,13 +4,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Proto123</title>
-    <link rel="stylesheet" href="style.css" />
+    <link data-trunk rel="css" href="style.css" />
+    <link data-trunk rel="copy-file" href="host.js" />
     <link data-trunk rel="rust" href="../apps/proto123-wasm/Cargo.toml" data-wasm-opt="z" data-cargo-profile="release-wasm" />
   </head>
   <body>
-    <!-- Ratzilla appends the single <canvas> inside #grid; #grid receives focus and input. -->
-    <main id="grid" tabindex="0" aria-label="Spreadsheet grid"></main>
-    <div id="live" aria-live="polite" class="sr-only"></div>
+    <main id="grid" tabindex="0" aria-label="Proto123 spreadsheet"><canvas></canvas></main>
+    <div id="live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
     <script src="host.js"></script>
   </body>
 </html>

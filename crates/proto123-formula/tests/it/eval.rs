@@ -8,7 +8,8 @@ struct Sheet(BTreeMap<CellAddr, Value>);
 
 impl Sheet {
     fn with(mut self, addr: &str, v: Value) -> Self {
-        self.0.insert(proto123_coord::RefAddr::parse(addr).unwrap().addr, v);
+        self.0
+            .insert(proto123_coord::RefAddr::parse(addr).unwrap().addr, v);
         self
     }
 }
@@ -138,6 +139,8 @@ fn overflow_to_infinity_is_value_error() {
 
 #[test]
 fn error_inside_a_range_spreads_to_the_aggregate() {
-    let s = Sheet::default().with("A1", num(1.0)).with("A2", Value::Error(ErrorKind::Div0));
+    let s = Sheet::default()
+        .with("A1", num(1.0))
+        .with("A2", Value::Error(ErrorKind::Div0));
     assert_eq!(run("SUM(A1:A2)", &s), Value::Error(ErrorKind::Div0));
 }

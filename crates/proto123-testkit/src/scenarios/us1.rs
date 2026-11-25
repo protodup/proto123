@@ -5,7 +5,10 @@ use proto123_engine::Mode;
 use std::collections::BTreeMap;
 
 fn cells(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
-    pairs.iter().map(|(a, v)| ((*a).to_owned(), (*v).to_owned())).collect()
+    pairs
+        .iter()
+        .map(|(a, v)| ((*a).to_owned(), (*v).to_owned()))
+        .collect()
 }
 
 pub fn scenarios() -> Vec<Scenario> {

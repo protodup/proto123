@@ -11,7 +11,7 @@ mod style;
 
 pub use input::InputMapper;
 pub use layout::{GridArea, grid_area, meets_minimum};
-pub use layout_map::{HitTarget, LayoutMap};
-pub use pixel::CellMetrics;
+pub use layout_map::{EdgeDir, HitTarget, LayoutMap};
+pub use pixel::{CellMetrics, pixel_to_cell};
 pub use raw::{Button, Key, Mods, Pos, RawEvent, RawKind};
 pub use render::render;

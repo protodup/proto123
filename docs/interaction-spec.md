@@ -42,62 +42,74 @@ Row N-1: [Sheet1] [Sheet2] [+]   |  SUM=257.50  COUNT=4  |  / Menu · F1 Help
 
 ## 2. Mode State Machine (`SessionMode`)
 
-Every keystroke and pointer event is interpreted deterministically according to the active mode:
+Every keystroke and pointer event is interpreted deterministically according to the active mode (`READY`, `VALUE`, `LABEL`, `EDIT`, `POINT`, `MENU`, `DIALOG`):
 
 ```text
-                ┌─────────────── (type digit / '=' / '+' / '-') ──► VALUE ──┐
-                │                                                           │ (Arrow/Mouse
-                ├─────────────── (type letter / ' / " / ^) ───────► LABEL   │  after operator)
+                ┌─────────────── (type digit = + - . ( @) ─────────► VALUE ──┐
+                │                                                           │ (Arrow/click/drag
+                ├─────────────── (type other printable / ' " ^) ───► LABEL   │  after operator)
                 │                                                           ▼
-  [READY] ──────┼─────────────── (F2 / double-click / click bar) ─► EDIT ◄─► POINT
+  [READY] ──────┼─────────────── (F2 / dbl-click / formula-bar) ───► EDIT ◄─► POINT
      ▲          │                                                           │
-     │ (Esc /   ├─────────────── ('/' or click top menu item) ────► MENU    │ (Enter commits)
-     │  commit) │                                                           ▼
-     └──────────┴─────────────── (command needs text/confirm) ────► DIALOG ─┘
+     │ (Esc /   ├─────────────── ('/' or root-bar click) ──────────► MENU    │ (Enter/Tab/click
+     │  commit) │                                                           │  commits)
+     └──────────┴─────────────── (Copy/Move/New with content) ─────► DIALOG ─┘
 ```
 
-1. **`READY` -> `VALUE`:** Typing `0-9`, `=`, `+`, `-`, `.`, `(`, or `@` starts replacing the active cell immediately.
-2. **`READY` -> `LABEL`:** Typing any other printable character starts a text label. Leading `'`, `"`, or `^` sets left, right, or center alignment respectively (stored in cell style, not displayed as raw text).
+Mode transitions:
+
+1. **`READY` -> `VALUE`:** Typing a digit, `=`, `+`, `-`, `.`, `(`, or `@` starts replacing the active cell immediately.
+2. **`READY` -> `LABEL`:** Typing any other printable character (other than `/`), including `'`, `"`, or `^`, starts a text label (`'`, `"`, `^` set left, right, or center alignment; shown in the formula bar, omitted from the grid).
 3. **`READY` -> `EDIT`:** Pressing `F2`, double-clicking a cell, or clicking the formula bar edits the existing raw content in place.
-4. **`VALUE` / `EDIT` -> `POINT`:** When the edit buffer starts with `=` (or `@`) and the cursor immediately follows an operator, `(`, `,`, `;`, or `:`, pressing an arrow key or clicking/dragging on the grid switches to `POINT` mode and inserts/updates a live reference (`B2` or `B2:D5`). Typing another operator returns to `VALUE`/`EDIT` while keeping the reference.
-5. **`MENU`:** Pressing `/` or clicking any top-level menu item activates `MENU`. `Esc` steps back one submenu level (or returns to `READY` from root). Clicking outside the menu area dismisses `MENU` cleanly.
-6. **`DIALOG`:** Modal TUI overlay centered on the screen for prompts (e.g., *Fetch Remote URL*, *Open File*, *Save Filename*, *Rename Sheet*, *Confirm Clear*). `Enter` submits, `Esc` cancels, and mouse clicks work on input fields and `[OK]` / `[Cancel]` buttons.
+4. **`VALUE` | `EDIT` -> `POINT`:** When the edit buffer is a formula and the caret immediately follows an operator (`=`, `+`, `-`, `*`, `/`, `^`), `(`, `,`, `;`, or `:`, an arrow key or grid click/drag enters `POINT` and inserts/updates a live reference (`B2` or `B2:D5`).
+5. **`POINT` -> `VALUE` | `EDIT`:** Typing an operator or character returns to `VALUE` or `EDIT` while keeping the inserted reference.
+6. **`VALUE` | `LABEL` -> `READY`:** An arrow key when not pointing commits the entry and moves one cell in that direction.
+7. **`EDIT` -> `READY` | caret move:** `Up`/`Down` commit and move; `Left`/`Right`/`Home`/`End` move only the caret inside the buffer.
+8. **`VALUE` | `LABEL` | `EDIT` | `POINT` -> `READY`:** `Enter`, `Tab`, or clicking elsewhere commits (`Esc` discards). On a parse error, the session stays in edit mode with a status-bar diagnostic.
+9. **`READY` <-> `MENU`:** Pressing `/` or clicking a root-bar item opens `MENU`. `Esc` in a submenu steps up to the parent level; `Esc` at the root or clicking outside closes `MENU` back to `READY`.
+10. **`MENU` -> `DIALOG`:** Selecting a leaf needing input (`Range -> Copy`, `Range -> Move`, or `File -> New` when the workbook has content) enters `DIALOG`.
+11. **`DIALOG` -> `READY`:** `Enter` or clicking `[OK]`/`[Yes]` executes the command and returns to `READY`; `Esc` or clicking `[Cancel]`/`[No]` returns to `READY` with no change.
 
 ---
 
 ## 3. Keyboard Interaction Contract
 
-Every feature MUST be 100% reachable by keyboard with zero focus traps, on both targets. Where a terminal or browser reserves a key (e.g., some terminals swallow `Ctrl+PgUp`, browsers reserve `Ctrl+W`), the same command MUST stay reachable through the `/` menu.
+Every feature MUST be 100% reachable by keyboard with zero focus traps, on both targets. Where a terminal or browser reserves a key (e.g., some terminals swallow `Shift+Arrow` or `Ctrl+`), the same command MUST stay reachable through the `/` menu or an unmodified alternative (`F8`).
 
 | Context | Key(s) | Action / CommandId |
 |---|---|---|
 | `READY` | `Arrow Keys` | `nav.moveRelative` (1 cell) |
 | `READY` | `Shift + Arrows` | `nav.extendSelection` (rectangular range) |
 | `READY` | `F8` | `nav.toggleExtendMode`: anchors the selection at the active cell; plain arrows then extend it (`nav.extendSelection`) until `F8` or `Esc` ends the mode, keeping the selection. The status bar shows `[EXT]` while the mode is on |
-| `READY` | `Tab` / `Shift+Tab` | Move right / left 1 cell |
-| `READY` | `Enter` / `Shift+Enter` | Move down / up 1 cell |
+| `READY` | `Tab` / `Shift+Tab` | `nav.moveRelative` right / left 1 cell |
+| `READY` | `Enter` / `Shift+Enter` | `nav.moveRelative` down / up 1 cell |
 | `READY` | `PgUp` / `PgDn` | `nav.pageScroll` vertical |
 | `READY` | `Alt+PgUp` / `Alt+PgDn` | `nav.pageScroll` horizontal |
-| `READY` | `Home` / `Ctrl+Home` | Jump to column `A` of current row / `A1` |
-| `READY` | `End` then `Arrow` | `nav.jumpEdge` (jump to contiguous data edge) |
+| `READY` | `Home` / `Ctrl+Home` | `nav.jumpHome` to column `A` of current row / `A1` |
 | `READY` | `F2` | `cell.beginEdit` |
-| `READY` | `F5` | `nav.gotoCell` |
-| `READY` | `F9` | `calc.recalculateAll` |
-| `READY` | `Delete` / `Backspace` | `range.erase` |
+| `READY` | `Delete` | `range.erase` (`Backspace` is intentionally unbound in `READY`) |
 | `READY` | `/` | `menu.open` (Slash Command Bar) |
-| `READY` | `Ctrl+C` / `Ctrl+X` / `Ctrl+V` | `range.copy` / `range.cut` / `range.paste` |
 | `READY` | `Ctrl+Z` / `Ctrl+Y` | `edit.undo` / `edit.redo` |
-| `READY` | `Ctrl+S` / `Ctrl+O` | `file.saveOds` / `file.openLocal` |
-| `READY` | `Ctrl+PgUp` / `Ctrl+PgDn` | `nav.switchSheet` previous / next |
-| `READY` | ``Ctrl+` `` | `view.toggleFormulas` |
-| `EDIT`/`VALUE`/`LABEL` | `Enter` | `cell.commitEdit` and move down |
-| `EDIT`/`VALUE`/`LABEL` | `Tab` / `Shift+Tab` | `cell.commitEdit` and move right / left |
-| `EDIT`/`VALUE`/`LABEL` | `Esc` | `cell.cancelEdit` |
-| `EDIT`/`POINT` | `F4` | `cell.toggleAbsRef` (`A1` -> `$A$1` -> `A$1` -> `$A1`) |
-| `POINT` | `F8` | `nav.toggleExtendMode`: anchors the live reference; plain arrows then extend it to a range (`B2:D5`) |
-| `MENU` | First letter of item | Jump directly to submenu or execute command |
-| `MENU` | `Left` / `Right` + `Enter` | Highlight adjacent item / confirm |
+| `READY` (native) | `Ctrl+Q` | Quit `proto123-term` and restore terminal state |
+| `VALUE` / `LABEL` | `Enter` / `Tab` / `Shift+Tab` | `cell.commitEdit` and move |
+| `VALUE` / `LABEL` | `Arrow Keys` (not pointing) | `cell.commitEdit` and move 1 cell in arrow direction |
+| `VALUE` / `LABEL` | `Home` / `End` / `Backspace` / `Delete` | `cell.editCaret` |
+| `VALUE` / `LABEL` | `Esc` | `cell.cancelEdit` |
+| `EDIT` | `Left` / `Right` / `Home` / `End` / `Backspace` / `Delete` | `cell.editCaret` (caret only) |
+| `EDIT` | `Up` / `Down` / `Enter` / `Tab` / `Shift+Tab` | `cell.commitEdit` and move |
+| `EDIT` | `Esc` | `cell.cancelEdit` |
+| `VALUE` / `EDIT` (after operator, `(`, `,`, `;`, `:`) | `Arrow Keys` | Enter `POINT` and dispatch `point.setReference` |
+| `POINT` | `Arrow Keys` / `Shift+Arrows` | `point.setReference` |
+| `POINT` | `F8` | `nav.toggleExtendMode` (anchors the live reference so plain arrows extend it to `B2:D5`) |
+| `POINT` | Printable character | Return to `VALUE`/`EDIT` keeping reference (`cell.editInput`) |
+| `POINT` | `Enter` / `Tab` / `Esc` | `cell.commitEdit` / `cell.cancelEdit` |
+| `MENU` | First letter of item | `menu.trigger` (open submenu or execute command) |
+| `MENU` | `Left` / `Right` | `menu.move` (wraps around) |
+| `MENU` | `Enter` | `menu.activate` |
 | `MENU` | `Esc` | `menu.back` (up one level or exit to `READY`) |
+| `DIALOG` | `Enter` / `Esc` / `Tab` / typing / arrows | `prompt.submit` / `prompt.cancel` / `prompt.focus` / `prompt.input` / `point.setReference` |
+
+*(No `Ctrl+C`/`Ctrl+X`/`Ctrl+V` clipboard bindings exist in Spec 001; Copy and Move run via `/Range Copy` and `/Range Move`.)*
 
 ---
 
@@ -144,39 +156,19 @@ Every feature MUST be 100% reachable by keyboard with zero focus traps, on both 
 
 ## 5. Slash Command Bar (`/`) Hierarchy
 
-All labels follow [`docs/feature-names.md`](feature-names.md), use unique single-letter triggers per level, and map to registered `CommandId`s checked by `cargo xtask menu-commands`:
+All labels follow [`docs/feature-names.md`](feature-names.md), use unique single-letter triggers per level, and map to registered `CommandId`s checked by `cargo xtask menu-commands` (Spec 001 exact tree):
 
-- **`File`**
-  - `New` (`file.newWorkbook`)
-  - `Open` (`file.openLocal`) — `.ods`, `.xlsx`, or `.csv`
-  - `Fetch URL` (`file.fetchRemote`) — `.ods`, `.xlsx`, or `.csv`
-  - `Save ODS` (`file.saveOds`)
-  - `Push Server` (`file.pushRemote`)
-  - `Validate ODF` (`calc.validateOds`)
-- **`Edit`**
-  - `Undo` (`edit.undo`)
-  - `Redo` (`edit.redo`)
-  - `Copy` (`range.copy`)
-  - `Move` (`range.cut`)
-  - `Paste` (`range.paste`)
-- **`Range`**
-  - `Erase` (`range.erase`)
-  - `Format` -> `General` | `Fixed` | `Currency` | `Percent` | `Date` (`range.setNumberFormat`)
-  - `Label` -> `Left` | `Right` | `Center` (`range.setAlignment`)
-  - `Sort` (`range.sort`)
-  - `Goto` (`nav.gotoCell`)
-- **`Worksheet`**
-  - `Insert` -> `Row` (`sheet.insertRow`) | `Column` (`sheet.insertColumn`)
-  - `Delete` -> `Row` (`sheet.deleteRow`) | `Column` (`sheet.deleteColumn`)
-  - `Column` -> `Width` (`sheet.resizeColumn`)
-  - `Sheet` -> `Add` (`sheet.addSheet`) | `Rename` (`sheet.renameSheet`) | `Delete` (`sheet.deleteSheet`)
-  - `Titles` -> `Both` | `Horizontal` | `Vertical` | `Clear` (`sheet.setLockedHeaders`)
-  - `Recalc` (`calc.recalculateAll`)
-- **`View`**
-  - `Theme` (`view.cycleTheme`)
-  - `Show Formulas` (`view.toggleFormulas`)
-- **`Help`**
-  - `Shortcuts` | `Mouse Controls` | `About`
+- **`File`** (`F`)
+  - `New` (`N`) -> `file.newWorkbook`
+- **`Edit`** (`E`)
+  - `Undo` (`U`) -> `edit.undo`
+  - `Redo` (`R`) -> `edit.redo`
+- **`Range`** (`R`)
+  - `Erase` (`E`) -> `range.erase`
+  - `Copy` (`C`) -> `range.copy`
+  - `Move` (`M`) -> `range.move`
+- **`View`** (`V`)
+  - `Theme` (`T`) -> `view.cycleTheme`
 
 ---
 

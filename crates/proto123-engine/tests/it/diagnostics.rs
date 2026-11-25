@@ -1,5 +1,5 @@
 use crate::common::{addr, session, type_keys};
-use proto123_engine::{Command, Mode, Then, Status, StatusKind, StringKey, text};
+use proto123_engine::{Command, Mode, Status, StatusKind, StringKey, Then, text};
 use proto123_value::Value;
 
 #[test]
@@ -21,7 +21,10 @@ fn quote_prefix_stores_the_text_as_a_left_label() {
     let mut s = session();
     type_keys(&mut s, "'123 Main St");
     s.dispatch(Command::CellCommitEdit(Then::Stay));
-    assert_eq!(s.calc().value(addr("A1")), Value::Text("123 Main St".into()));
+    assert_eq!(
+        s.calc().value(addr("A1")),
+        Value::Text("123 Main St".into())
+    );
 }
 
 #[test]

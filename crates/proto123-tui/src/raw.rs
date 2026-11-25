@@ -10,21 +10,49 @@ pub struct RawEvent {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum RawKind {
-    Key { key: Key, mods: Mods },
-    PointerDown { at: Pos, button: Button, mods: Mods },
-    PointerMove { at: Pos, buttons_down: bool, mods: Mods },
-    PointerUp { at: Pos, button: Button, mods: Mods },
+    Key {
+        key: Key,
+        mods: Mods,
+    },
+    PointerDown {
+        at: Pos,
+        button: Button,
+        mods: Mods,
+    },
+    PointerMove {
+        at: Pos,
+        buttons_down: bool,
+        mods: Mods,
+    },
+    PointerUp {
+        at: Pos,
+        button: Button,
+        mods: Mods,
+    },
     /// Notches; positive is down/right.
-    Wheel { dx: i32, dy: i32, mods: Mods },
-    Resize { cols: u16, rows: u16 },
+    Wheel {
+        dx: i32,
+        dy: i32,
+        mods: Mods,
+    },
+    Resize {
+        cols: u16,
+        rows: u16,
+    },
     PointerLeave,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Pos {
-    Cell { col: u16, row: u16 },
+    Cell {
+        col: u16,
+        row: u16,
+    },
     /// Web host only: CSS pixels relative to the canvas.
-    Pixel { x: f64, y: f64 },
+    Pixel {
+        x: f64,
+        y: f64,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

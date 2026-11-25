@@ -61,7 +61,10 @@ pub fn classify_entry(buffer: &str) -> Result<Option<CellContent>, EntryError> {
     if is_plain_number(trimmed) {
         return match trimmed.parse::<f64>() {
             Ok(n) if n.is_finite() => Ok(Some(CellContent::Number(n))),
-            _ => Err(EntryError { pos: 0, quote_hint: false }),
+            _ => Err(EntryError {
+                pos: 0,
+                quote_hint: false,
+            }),
         };
     }
 
@@ -76,19 +79,31 @@ pub fn classify_entry(buffer: &str) -> Result<Option<CellContent>, EntryError> {
             _ => Alignment::Center,
         };
         let text: String = lead.chars().skip(1).collect();
-        return Ok(Some(CellContent::Label { text, align, prefix: Some(prefix) }));
+        return Ok(Some(CellContent::Label {
+            text,
+            align,
+            prefix: Some(prefix),
+        }));
     }
 
-    let is_formula_start = matches!(first, Some('=' | '+' | '-' | '.' | '(' | '@')) || first.is_some_and(|c| c.is_ascii_digit());
+    let is_formula_start = matches!(first, Some('=' | '+' | '-' | '.' | '(' | '@'))
+        || first.is_some_and(|c| c.is_ascii_digit());
     if is_formula_start {
         let quote_hint = !matches!(first, Some('=' | '+' | '@'));
         let stripped = usize::from(matches!(first, Some('=' | '+')));
         let body: String = lead.chars().skip(stripped).collect();
         return match Formula::parse(&body) {
             Ok(formula) => Ok(Some(CellContent::Formula(formula))),
-            Err(e) => Err(EntryError { pos: lead_offset + stripped + e.pos, quote_hint }),
+            Err(e) => Err(EntryError {
+                pos: lead_offset + stripped + e.pos,
+                quote_hint,
+            }),
         };
     }
 
-    Ok(Some(CellContent::Label { text: buffer.to_owned(), align: Alignment::Left, prefix: None }))
+    Ok(Some(CellContent::Label {
+        text: buffer.to_owned(),
+        align: Alignment::Left,
+        prefix: None,
+    }))
 }

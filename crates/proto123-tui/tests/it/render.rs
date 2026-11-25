@@ -33,10 +33,22 @@ fn sized_session() -> Session {
 fn fresh_session_shows_address_badge_and_bracketed_headers() {
     let s = sized_session();
     let (buf, _) = frame(&s, 80, 24);
-    assert!(line(&buf, 0).starts_with("[A1]"), "control line: {}", line(&buf, 0));
+    assert!(
+        line(&buf, 0).starts_with("[A1]"),
+        "control line: {}",
+        line(&buf, 0)
+    );
     assert!(line(&buf, 0).trim_end().ends_with("READY"));
-    assert!(line(&buf, 2).contains("[A]"), "column header: {}", line(&buf, 2));
-    assert!(line(&buf, 3).starts_with("[  1]"), "row header: {}", line(&buf, 3));
+    assert!(
+        line(&buf, 2).contains("[A]"),
+        "column header: {}",
+        line(&buf, 2)
+    );
+    assert!(
+        line(&buf, 3).starts_with("[  1]"),
+        "row header: {}",
+        line(&buf, 3)
+    );
 }
 
 #[test]
@@ -83,6 +95,9 @@ fn numbers_are_right_aligned_in_nine_columns() {
     s.dispatch(Command::CellCommitEdit(Then::Stay));
     let (buf, _) = frame(&s, 80, 24);
     // Column A is 9 wide after the 5-wide row header, so the number ends at column 13.
-    assert!(line(&buf, 3).starts_with("[  1]       12"), "{:?}", line(&buf, 3));
+    assert!(
+        line(&buf, 3).starts_with("[  1]       12"),
+        "{:?}",
+        line(&buf, 3)
+    );
 }
-

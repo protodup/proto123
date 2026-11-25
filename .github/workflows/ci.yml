@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+          targets: wasm32-unknown-unknown
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo xtask layers
+      - run: cargo xtask menu-commands
+      - run: cargo test --workspace
+      - name: Install Trunk 0.22.2
+        run: |
+          set -eux
+          asset="trunk-x86_64-unknown-linux-gnu.tar.gz"
+          url="https://github.com/trunk-rs/trunk/releases/download/v0.22.2/${asset}"
+          curl -fsSL "$url" -o "/tmp/${asset}"
+          curl -fsSL "${url}.sha256" -o "/tmp/${asset}.sha256"
+          echo "$(awk '{print $1}' "/tmp/${asset}.sha256")  /tmp/${asset}" | sha256sum -c -
+          sudo tar -xzf "/tmp/${asset}" -C /usr/local/bin trunk
+      - name: Build WASM and report size
+        run: |
+          cargo xtask wasm | tee wasm_report.txt
+          cat wasm_report.txt >> "$GITHUB_STEP_SUMMARY"
+
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build -p proto123-term
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo xtask docker-check

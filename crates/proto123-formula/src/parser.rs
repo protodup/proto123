@@ -30,17 +30,31 @@ pub struct ParseError {
 pub(crate) fn parse_body(body: &str) -> Result<Expr, ParseError> {
     let chars: Vec<char> = body.chars().collect();
     if chars.len() > MAX_LEN {
-        return Err(ParseError { pos: MAX_LEN, kind: ParseErrorKind::TooLong });
+        return Err(ParseError {
+            pos: MAX_LEN,
+            kind: ParseErrorKind::TooLong,
+        });
     }
     let tokens = lex(&chars)?;
-    let mut p = Parser { tokens, i: 0, depth: 0, end: chars.len() };
+    let mut p = Parser {
+        tokens,
+        i: 0,
+        depth: 0,
+        end: chars.len(),
+    };
     if p.tokens.is_empty() {
-        return Err(ParseError { pos: 0, kind: ParseErrorKind::UnexpectedEnd });
+        return Err(ParseError {
+            pos: 0,
+            kind: ParseErrorKind::UnexpectedEnd,
+        });
     }
     let expr = p.parse_bp(0)?;
     match p.peek_token() {
         None => Ok(expr),
-        Some(t) => Err(ParseError { pos: t.pos, kind: ParseErrorKind::Unexpected }),
+        Some(t) => Err(ParseError {
+            pos: t.pos,
+            kind: ParseErrorKind::Unexpected,
+        }),
     }
 }
 
@@ -131,14 +145,31 @@ impl Parser {
         // `@` before a function name is accepted shorthand: `@SUM(...)` == `SUM(...)`.
         if matches!(self.peek(), Some(Tok::At)) {
             let at = self.bump().map_or(self.end, |t| t.pos);
-            let is_call = matches!(self.tokens.get(self.i), Some(Token { tok: Tok::Word(_), .. }))
-                && matches!(self.tokens.get(self.i + 1), Some(Token { tok: Tok::LParen, .. }));
+            let is_call = matches!(
+                self.tokens.get(self.i),
+                Some(Token {
+                    tok: Tok::Word(_),
+                    ..
+                })
+            ) && matches!(
+                self.tokens.get(self.i + 1),
+                Some(Token {
+                    tok: Tok::LParen,
+                    ..
+                })
+            );
             if !is_call {
-                return Err(ParseError { pos: at, kind: ParseErrorKind::Unexpected });
+                return Err(ParseError {
+                    pos: at,
+                    kind: ParseErrorKind::Unexpected,
+                });
             }
         }
         let Some(token) = self.bump() else {
-            return Err(ParseError { pos: self.end, kind: ParseErrorKind::UnexpectedEnd });
+            return Err(ParseError {
+                pos: self.end,
+                kind: ParseErrorKind::UnexpectedEnd,
+            });
         };
         match token.tok {
             Tok::Number(n) => Ok(Expr::Number(n)),
@@ -149,7 +180,10 @@ impl Parser {
                 Ok(inner)
             }
             Tok::Word(word) => self.parse_word(word),
-            _ => Err(ParseError { pos: token.pos, kind: ParseErrorKind::Unexpected }),
+            _ => Err(ParseError {
+                pos: token.pos,
+                kind: ParseErrorKind::Unexpected,
+            }),
         }
     }
 
@@ -159,7 +193,10 @@ impl Parser {
                 self.bump();
                 Ok(())
             }
-            None => Err(ParseError { pos: self.end, kind: ParseErrorKind::UnclosedParen }),
+            None => Err(ParseError {
+                pos: self.end,
+                kind: ParseErrorKind::UnclosedParen,
+            }),
             Some(_) => Err(self.error_here(ParseErrorKind::Unexpected)),
         }
     }
@@ -199,25 +236,40 @@ impl Parser {
 
     fn parse_range_end(&mut self, first: RefAddr) -> Result<Expr, ParseError> {
         let Some(token) = self.bump() else {
-            return Err(ParseError { pos: self.end, kind: ParseErrorKind::UnexpectedEnd });
+            return Err(ParseError {
+                pos: self.end,
+                kind: ParseErrorKind::UnexpectedEnd,
+            });
         };
         let Tok::Word(word) = token.tok else {
-            return Err(ParseError { pos: token.pos, kind: ParseErrorKind::Unexpected });
+            return Err(ParseError {
+                pos: token.pos,
+                kind: ParseErrorKind::Unexpected,
+            });
         };
         match RefAddr::classify(&word) {
             RefSyntax::Valid(second) => Ok(Expr::Range(first, second)),
             RefSyntax::OutOfGrid => Ok(Expr::ErrorLit(ErrorKind::Ref)),
-            RefSyntax::NotARef => Err(ParseError { pos: token.pos, kind: ParseErrorKind::Unexpected }),
+            RefSyntax::NotARef => Err(ParseError {
+                pos: token.pos,
+                kind: ParseErrorKind::Unexpected,
+            }),
         }
     }
 
     fn parse_range_end_lenient(&mut self) -> Result<(), ParseError> {
         let Some(token) = self.bump() else {
-            return Err(ParseError { pos: self.end, kind: ParseErrorKind::UnexpectedEnd });
+            return Err(ParseError {
+                pos: self.end,
+                kind: ParseErrorKind::UnexpectedEnd,
+            });
         };
         match token.tok {
             Tok::Word(word) if !matches!(RefAddr::classify(&word), RefSyntax::NotARef) => Ok(()),
-            _ => Err(ParseError { pos: token.pos, kind: ParseErrorKind::Unexpected }),
+            _ => Err(ParseError {
+                pos: token.pos,
+                kind: ParseErrorKind::Unexpected,
+            }),
         }
     }
 
@@ -227,7 +279,10 @@ impl Parser {
         let mut args = Vec::new();
         if matches!(self.peek(), Some(Tok::RParen)) {
             self.bump();
-            return Ok(Expr::Call { name: word.to_ascii_uppercase(), args });
+            return Ok(Expr::Call {
+                name: word.to_ascii_uppercase(),
+                args,
+            });
         }
         loop {
             args.push(self.parse_bp(0)?);
@@ -239,10 +294,18 @@ impl Parser {
                     self.bump();
                     break;
                 }
-                None => return Err(ParseError { pos: self.end, kind: ParseErrorKind::UnclosedParen }),
+                None => {
+                    return Err(ParseError {
+                        pos: self.end,
+                        kind: ParseErrorKind::UnclosedParen,
+                    });
+                }
                 Some(_) => return Err(self.error_here(ParseErrorKind::Unexpected)),
             }
         }
-        Ok(Expr::Call { name: word.to_ascii_uppercase(), args })
+        Ok(Expr::Call {
+            name: word.to_ascii_uppercase(),
+            args,
+        })
     }
 }

@@ -1,19 +1,97 @@
 use cargo_metadata::{DependencyKind, MetadataCommand};
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::process::ExitCode;
+use std::process::{Command, ExitCode};
 use xtask::layers::{Dep, Pkg, check};
 
-const USAGE: &str = "usage: cargo xtask <command>\n\ncommands:\n  layers    check the L0-L6 dependency DAG (contracts/xtask.md)";
+const USAGE: &str = "usage: cargo xtask <command>
+
+commands:
+  layers         check the L0-L6 dependency DAG (contracts/xtask.md)
+  menu-commands  verify every menu entry maps to a live CommandId
+  wasm           build L0-L5 + trunk release bundle and report .wasm size
+  docker-check   build container image and verify WASM Content-Type
+  ci             run fmt, clippy, layers, menu-commands, tests, and wasm";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
         Some("layers") => layers_command(),
+        Some("menu-commands") => xtask::menu::run(),
+        Some("wasm") => xtask::wasm::run(),
+        Some("docker-check") => xtask::docker::run(),
+        Some("ci") => ci_command(),
         _ => {
             eprintln!("{USAGE}");
             ExitCode::from(2)
         }
     }
+}
+
+fn run_step(label: &str, mut cmd: Command) -> Result<(), ExitCode> {
+    println!("ci: running {label}");
+    match cmd.status() {
+        Ok(st) if st.success() => Ok(()),
+        Ok(st) => {
+            eprintln!("ci: step `{label}` failed");
+            let code = u8::try_from(st.code().unwrap_or(1)).unwrap_or(1);
+            Err(ExitCode::from(code.max(1)))
+        }
+        Err(e) => {
+            eprintln!("ci: step `{label}` could not start: {e}");
+            Err(ExitCode::from(2))
+        }
+    }
+}
+
+fn ci_command() -> ExitCode {
+    let mut fmt = Command::new("cargo");
+    fmt.args(["fmt", "--all", "--", "--check"]);
+    if let Err(code) = run_step("fmt", fmt) {
+        return code;
+    }
+
+    let mut clippy = Command::new("cargo");
+    clippy.args([
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings",
+    ]);
+    if let Err(code) = run_step("clippy", clippy) {
+        return code;
+    }
+
+    println!("ci: running layers");
+    let layers_code = layers_command();
+    if layers_code != ExitCode::SUCCESS {
+        eprintln!("ci: step `layers` failed");
+        return layers_code;
+    }
+
+    println!("ci: running menu-commands");
+    let menu_code = xtask::menu::run();
+    if menu_code != ExitCode::SUCCESS {
+        eprintln!("ci: step `menu-commands` failed");
+        return menu_code;
+    }
+
+    let mut test = Command::new("cargo");
+    test.args(["test", "--workspace"]);
+    if let Err(code) = run_step("test", test) {
+        return code;
+    }
+
+    println!("ci: running wasm");
+    let wasm_code = xtask::wasm::run();
+    if wasm_code != ExitCode::SUCCESS {
+        eprintln!("ci: step `wasm` failed");
+        return wasm_code;
+    }
+
+    println!("ci: ok");
+    ExitCode::SUCCESS
 }
 
 fn layers_command() -> ExitCode {
@@ -25,7 +103,11 @@ fn layers_command() -> ExitCode {
         }
     };
     let members: HashSet<_> = metadata.workspace_members.iter().cloned().collect();
-    let by_id: HashMap<_, _> = metadata.packages.iter().map(|p| (p.id.clone(), p)).collect();
+    let by_id: HashMap<_, _> = metadata
+        .packages
+        .iter()
+        .map(|p| (p.id.clone(), p))
+        .collect();
     let edges: HashMap<_, Vec<_>> = metadata
         .resolve
         .as_ref()
@@ -50,10 +132,17 @@ fn layers_command() -> ExitCode {
         let deps = package
             .dependencies
             .iter()
-            .map(|d| Dep { name: d.name.clone(), dev: d.kind == DependencyKind::Development })
+            .map(|d| Dep {
+                name: d.name.clone(),
+                dev: d.kind == DependencyKind::Development,
+            })
             .collect();
         let transitive_normal = reachable_names(&package.id, &edges, &by_id);
-        pkgs.push(Pkg { name: package.name.to_string(), deps, transitive_normal });
+        pkgs.push(Pkg {
+            name: package.name.to_string(),
+            deps,
+            transitive_normal,
+        });
     }
 
     let violations = check(&pkgs);

@@ -2,11 +2,12 @@
 //! arrives as raw primitives from `web/host.js` and is interpreted by the shared core.
 
 use crate::translate;
-use proto123_engine::{Redraw, Session};
+use proto123_engine::{Command, Redraw, Session};
 use proto123_theme::high_contrast;
-use proto123_tui::{InputMapper, LayoutMap, render};
+use proto123_tui::{CellMetrics, InputMapper, LayoutMap, RawKind, render};
 use ratatui::Terminal;
 use ratzilla::backend::canvas::{CanvasBackend, CanvasBackendOptions};
+use ratzilla::backend::cell_sized::CellSized;
 use ratzilla::web_sys;
 use std::cell::RefCell;
 use wasm_bindgen::prelude::*;
@@ -17,6 +18,8 @@ struct App {
     mapper: InputMapper,
     layout: LayoutMap,
     terminal: Terminal<CanvasBackend>,
+    metrics: CellMetrics,
+    grid_cells: (u16, u16),
     css_size: (u32, u32),
     dpr: f64,
 }
@@ -51,13 +54,24 @@ fn remove_previous_canvas(parent_id: &str) -> Result<(), JsValue> {
     Ok(())
 }
 
-fn make_terminal(parent_id: &str, css: (u32, u32), dpr: f64) -> Result<Terminal<CanvasBackend>, JsValue> {
+fn make_terminal(
+    parent_id: &str,
+    css: (u32, u32),
+    dpr: f64,
+    theme_metrics: &proto123_theme::GridMetrics,
+) -> Result<(Terminal<CanvasBackend>, CellMetrics, bool), JsValue> {
     remove_previous_canvas(parent_id)?;
     let px_w = (f64::from(css.0) * dpr).round() as u32;
     let px_h = (f64::from(css.1) * dpr).round() as u32;
-    let options = CanvasBackendOptions::new().grid_id(parent_id).size((px_w, px_h));
+    let options = CanvasBackendOptions::new()
+        .grid_id(parent_id)
+        .size((px_w, px_h));
     let backend = CanvasBackend::new_with_options(options).map_err(js_err)?;
-    Terminal::new(backend).map_err(js_err)
+    let (bw, bh) = backend.cell_size_css_px();
+    let (metrics, mismatch) =
+        CellMetrics::from_theme(theme_metrics, dpr).reconcile((f64::from(bw), f64::from(bh)));
+    let terminal = Terminal::new(backend).map_err(js_err)?;
+    Ok((terminal, metrics, mismatch))
 }
 
 /// Draws one frame and records its layout map for hit-testing.
@@ -76,63 +90,175 @@ fn draw(app: &mut App, full: bool) -> Result<(), JsValue> {
     Ok(())
 }
 
-fn apply_raw(app: &mut App, event: proto123_tui::RawEvent) -> Result<(), JsValue> {
+fn apply_raw(app: &mut App, event: proto123_tui::RawEvent) -> Result<Option<String>, JsValue> {
     let mut redraw = Redraw::None;
+    let mut announce = None;
     for command in app.mapper.map(event, &app.layout, &app.session) {
-        redraw = combine(redraw, app.session.dispatch(command).redraw);
+        let out = app.session.dispatch(command);
+        redraw = combine(redraw, out.redraw);
+        if out.announce.is_some() {
+            announce = out.announce;
+        }
     }
     match redraw {
-        Redraw::None => Ok(()),
-        Redraw::Regions => draw(app, false),
-        Redraw::Full => draw(app, true),
+        Redraw::None => {}
+        Redraw::Regions => draw(app, false)?,
+        Redraw::Full => draw(app, true)?,
     }
+    Ok(announce)
+}
+
+fn apply_resize(
+    app: &mut App,
+    css_w: u32,
+    css_h: u32,
+    mismatch: bool,
+    t_ms: u64,
+) -> Result<Option<String>, JsValue> {
+    let raw =
+        translate::resize_with_metrics(&app.metrics, f64::from(css_w), f64::from(css_h), t_ms);
+    if let RawKind::Resize { cols, rows } = raw.kind {
+        app.grid_cells = (cols, rows);
+    }
+    if mismatch {
+        let mut cmds = app.mapper.map(raw, &app.layout, &app.session);
+        let mut redraw = Redraw::None;
+        let mut announce = None;
+        for cmd in cmds.drain(..) {
+            let mapped = match cmd {
+                Command::SessionResize { cols, rows } => Command::SessionResizeWithMetrics {
+                    cols,
+                    rows,
+                    metrics_mismatch: true,
+                },
+                other => other,
+            };
+            let out = app.session.dispatch(mapped);
+            redraw = combine(redraw, out.redraw);
+            if out.announce.is_some() {
+                announce = out.announce;
+            }
+        }
+        if redraw == Redraw::Full {
+            draw(app, true)?;
+        } else if redraw == Redraw::Regions {
+            draw(app, false)?;
+        }
+        return Ok(announce);
+    }
+    apply_raw(app, raw)
 }
 
 /// Starts the app inside `parent_id` at the given CSS size and device pixel ratio.
 #[wasm_bindgen]
-pub fn start(parent_id: &str, css_w: u32, css_h: u32, dpr: f64) -> Result<(), JsValue> {
-    let terminal = make_terminal(parent_id, (css_w, css_h), dpr)?;
+pub fn start(parent_id: &str, css_w: u32, css_h: u32, dpr: f64) -> Result<Option<String>, JsValue> {
+    let session = Session::new(high_contrast());
+    let theme_metrics = session.theme().metrics;
+    let (terminal, metrics, mismatch) =
+        make_terminal(parent_id, (css_w, css_h), dpr, &theme_metrics)?;
     let mut app = App {
         parent_id: parent_id.to_owned(),
-        session: Session::new(high_contrast()),
-        mapper: InputMapper::new(proto123_theme::GridMetrics::DEFAULT),
+        session,
+        mapper: InputMapper::new(theme_metrics),
         layout: LayoutMap::default(),
         terminal,
+        metrics,
+        grid_cells: (0, 0),
         css_size: (css_w, css_h),
         dpr,
     };
-    let resize = translate::resize(f64::from(css_w), f64::from(css_h), dpr, 0);
-    apply_raw(&mut app, resize)?;
+    let announce = apply_resize(&mut app, css_w, css_h, mismatch, 0)?;
     APP.with(|cell| *cell.borrow_mut() = Some(app));
-    Ok(())
+    Ok(announce)
 }
 
-/// Forwards one `keydown`. Returns nothing; the core decides what changes.
+/// Forwards one `keydown` and returns any pending live-region announcement.
 #[wasm_bindgen]
-pub fn on_key(key: &str, shift: bool, ctrl: bool, alt: bool, meta: bool, t_ms: f64) -> Result<(), JsValue> {
+pub fn on_key(
+    key: &str,
+    shift: bool,
+    ctrl: bool,
+    alt: bool,
+    meta: bool,
+    t_ms: f64,
+) -> Result<Option<String>, JsValue> {
     let Some(raw) = translate::keydown(key, shift, ctrl, alt, meta, t_ms as u64) else {
-        return Ok(());
+        return Ok(None);
     };
     APP.with(|cell| match cell.borrow_mut().as_mut() {
         Some(app) => apply_raw(app, raw),
-        None => Ok(()),
+        None => Ok(None),
+    })
+}
+
+/// Forwards a pointer event (`0` down, `1` move, `2` up, `3` leave) in CSS px.
+#[wasm_bindgen]
+pub fn on_pointer(
+    kind: u8,
+    x: f64,
+    y: f64,
+    button: i16,
+    buttons: u16,
+    mods: u8,
+    t_ms: f64,
+) -> Result<Option<String>, JsValue> {
+    APP.with(|cell| {
+        let mut slot = cell.borrow_mut();
+        let Some(app) = slot.as_mut() else {
+            return Ok(None);
+        };
+        let (cols, rows) = app.grid_cells;
+        let Some(raw) = translate::pointer(
+            translate::DomPointer {
+                kind,
+                x,
+                y,
+                button,
+                buttons,
+                mods_bits: mods,
+            },
+            t_ms as u64,
+            &app.metrics,
+            cols,
+            rows,
+        ) else {
+            return Ok(None);
+        };
+        apply_raw(app, raw)
+    })
+}
+
+/// Forwards a wheel event (`dx`, `dy`) and returns any pending announcement.
+#[wasm_bindgen]
+pub fn on_wheel(dx: f64, dy: f64, mods: u8, t_ms: f64) -> Result<Option<String>, JsValue> {
+    let Some(raw) = translate::wheel(dx, dy, mods, t_ms as u64) else {
+        return Ok(None);
+    };
+    APP.with(|cell| match cell.borrow_mut().as_mut() {
+        Some(app) => apply_raw(app, raw),
+        None => Ok(None),
     })
 }
 
 /// Forwards a canvas size or device-pixel-ratio change; rebuilds the canvas when it changed.
 #[wasm_bindgen]
-pub fn on_resize(css_w: u32, css_h: u32, dpr: f64, t_ms: f64) -> Result<(), JsValue> {
+pub fn on_resize(css_w: u32, css_h: u32, dpr: f64, t_ms: f64) -> Result<Option<String>, JsValue> {
     APP.with(|cell| {
         let mut slot = cell.borrow_mut();
         let Some(app) = slot.as_mut() else {
-            return Ok(());
+            return Ok(None);
         };
+        let mut mismatch = false;
         if app.css_size != (css_w, css_h) || (app.dpr - dpr).abs() > f64::EPSILON {
-            app.terminal = make_terminal(&app.parent_id, (css_w, css_h), dpr)?;
+            let theme_metrics = app.session.theme().metrics;
+            let (terminal, metrics, mm) =
+                make_terminal(&app.parent_id, (css_w, css_h), dpr, &theme_metrics)?;
+            app.terminal = terminal;
+            app.metrics = metrics;
             app.css_size = (css_w, css_h);
             app.dpr = dpr;
+            mismatch = mm;
         }
-        let raw = translate::resize(f64::from(css_w), f64::from(css_h), dpr, t_ms as u64);
-        apply_raw(app, raw)
+        apply_resize(app, css_w, css_h, mismatch, t_ms as u64)
     })
 }

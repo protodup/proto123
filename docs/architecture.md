@@ -2,18 +2,20 @@
 
 > **Last reviewed:** 2026-11-24 · **Last updated:** 2026-11-24 · **Change:** aligned with constitution v1.1.0 (native terminal target, Ratatui + Ratzilla/crossterm, mouse on both targets, `.xlsx`/`.csv` import-only) · **Target:** OASIS ODF 1.3 (ISO/IEC 26300) + Classic Keyboard-First / Mouse-Enabled TUI Ergonomics
 
-## Current state (2026-11-24)
+## Current state (2026-11-25 — Spec 001 Foundational MVP)
 
-What exists on `main` today. The numbered sections below are the foundational design plan; as implementation progresses, update this summary first—where the code differs from the original plan, this summary wins.
+What exists on the `001-foundational-mvp` branch today. The numbered sections below are the foundational design plan; as implementation progresses, update this summary first—where the code differs from the original plan, this summary wins.
 
-- **Workspace:** Planned L0–L6 layered Cargo workspace (`crates/proto123-*`, `apps/proto123-wasm`, `apps/proto123-cli`, `xtask/`). Layer boundaries are enforced by `cargo xtask layers` (`xtask/src/layers.rs`).
-- **Targets:** One shared Rust core (`L0`–`L5`) drives two front ends: the **web target** (`apps/proto123-wasm`, `wasm32-unknown-unknown`, single `<canvas>`) and the **native terminal target** (`apps/proto123-term`, Linux/macOS/Windows). A headless CLI (`apps/proto123-cli`) exercises the same engine without any UI.
-- **Rendering & UI:** Decided: TUI layout is written once with **Ratatui** in `proto123-tui`; the web target draws it with the **Ratzilla** Canvas/WebGL backend and the native target with the **crossterm** backend. Zero per-cell HTML DOM nodes; minimal JS/TS host in `web/`. A custom Canvas 2D renderer is allowed only if a feature plan shows Ratzilla cannot meet the performance budget, and it must consume the same Ratatui layout.
-- **Mouse:** Full mouse support on both targets—Canvas pointer events on the web, terminal mouse reporting on native—interpreted by one shared `InputMapper` and `LayoutMap`.
-- **Engine:** Command-driven session (`proto123-engine`) where keyboard shortcuts, hierarchical `/` menus, mouse actions, and headless CLI invocations all dispatch typed `CommandId`s.
-- **File Formats:** Pure-Rust ODF 1.3 (`.ods`) reader/writer (`proto123-ods`) with OpenFormula (`of:=...`) round-trip fidelity; `.xlsx` (`proto123-xlsx`) and RFC 4180 CSV (`proto123-csv`) are import-only. Every file written is `.ods`.
-- **Deployment:** The web target runs 100% client-side as static assets (local dev server, offline, or multi-stage Docker container serving `application/wasm` and `application/vnd.oasis.opendocument.spreadsheet`), with remote URL `fetch()` loading and download / opt-in `PUT`/`POST` persistence. The native target is a single binary that opens local files or HTTP URLs, saves to the local filesystem, and offers the same opt-in `PUT`/`POST` hook.
-- **Not built yet:** All workspace crates are at pre-MVP scaffolding stage; implementation proceeds through GitHub Spec Kit specs under `.specify/specs/`.
+- **Built crates (`L0`–`L6`, Support, Tooling):**
+  - **L0:** `proto123-coord`, `proto123-value`, `proto123-theme` (including `CapabilityProfile::detect`, `high-contrast`, `console16`, `mono`, and WCAG contrast math).
+  - **L1:** `proto123-model` (1 sparse sheet in this slice), `proto123-formula` (Pratt parser, OpenFormula-precedence evaluator for `+ - * / ^` and `SUM`/`AVERAGE`/`MIN`/`MAX`/`COUNT`, `shifted`/`remap`/`remap_move`).
+  - **L2:** `proto123-calc` (iterative BFS + Kahn DAG recalculation, `#CIRC!` detection), `proto123-ops` (`CellDelta`, `Erase`/`Copy`/`Move`, `UndoStack`).
+  - **L4:** `proto123-engine` (`Session`, `READY`/`VALUE`/`LABEL`/`EDIT`/`POINT`/`MENU`/`DIALOG`, `CommandId` registry, `menu_catalog.rs`, `strings.rs`, `announce.rs`).
+  - **L5:** `proto123-tui` (Ratatui `render()`, `LayoutMap`, `CellMetrics` + `pixel_to_cell`, `InputMapper` for keyboard + mouse).
+  - **L6:** `apps/proto123-wasm` + `web/` (thin JS host forwarding raw events, Ratzilla `CanvasBackend` used **strictly for drawing**, single `<canvas>` + single `#live` ARIA live region), `apps/proto123-term` (crossterm event loop, `TerminalGuard` + panic hook, SGR mouse capture, capability profile detection + `--theme`/`--glyphs` overrides).
+  - **Support & Tooling:** `proto123-testkit` (shared US1–US5 scenario suite replayed through both targets' translations), `xtask/` (`layers`, `menu-commands`, `wasm`, `docker-check`, `ci`), `Dockerfile` + `docker/nginx.conf`, `.github/workflows/ci.yml`.
+- **Allowed same-layer edges:** `proto123-model -> proto123-formula` (L1) and `proto123-ops -> proto123-calc` (L2); enforced acyclic by Cargo and validated by `cargo xtask layers`.
+- **Deferred to Spec 002+:** L3 file codecs (`proto123-ods`, `proto123-xlsx`, `proto123-csv`), `apps/proto123-cli`, `corpus/` fixtures, `xtask ods-conformance` / `xtask parity`, multi-sheet tabs, dates (`chrono`), and remote URL loading / `PUT`/`POST` hooks.
 
 ---
 

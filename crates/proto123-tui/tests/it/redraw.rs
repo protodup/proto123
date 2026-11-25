@@ -5,7 +5,12 @@ use proto123_tui::render;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
-const AREA: Rect = Rect { x: 0, y: 0, width: 80, height: 24 };
+const AREA: Rect = Rect {
+    x: 0,
+    y: 0,
+    width: 80,
+    height: 24,
+};
 // Layout constants of the 80×24 frame: control line y=0, column headers y=2, first grid row y=3,
 // status bar y=23; row header 5 wide, columns 9 wide.
 const CONTROL_Y: u16 = 0;
@@ -21,7 +26,11 @@ fn frame(s: &Session) -> Buffer {
 }
 
 fn changed(before: &Buffer, after: &Buffer) -> Vec<(u16, u16)> {
-    before.diff(after).into_iter().map(|(x, y, _)| (x, y)).collect()
+    before
+        .diff(after)
+        .into_iter()
+        .map(|(x, y, _)| (x, y))
+        .collect()
 }
 
 fn addr(s: &str) -> CellAddr {
@@ -76,7 +85,10 @@ fn moving_the_active_cell_changes_only_the_old_and_new_cells_and_the_control_lin
         let control = y == CONTROL_Y;
         let header = y == HEADER_Y && (5..23).contains(&x);
         let row1_cells = y == ROW1_Y && (5..23).contains(&x);
-        assert!(control || header || row1_cells, "unexpected redraw at ({x},{y})");
+        assert!(
+            control || header || row1_cells,
+            "unexpected redraw at ({x},{y})"
+        );
     }
 }
 

@@ -1,3 +1,8 @@
+#[cfg(test)]
+mod contrast;
+#[cfg(test)]
+mod profile;
+
 use proto123_theme::{Color, GridMetrics, ThemeId, high_contrast};
 
 #[test]

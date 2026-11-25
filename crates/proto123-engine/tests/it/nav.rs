@@ -25,9 +25,15 @@ fn home_and_ctrl_home_jump() {
 fn page_scroll_moves_by_the_visible_size() {
     let mut s = session();
     s.dispatch(Command::SessionResize { cols: 8, rows: 20 });
-    s.dispatch(Command::NavPageScroll { horizontal: false, dir: 1 });
+    s.dispatch(Command::NavPageScroll {
+        horizontal: false,
+        dir: 1,
+    });
     assert_eq!(s.active(), addr("A21"));
-    s.dispatch(Command::NavPageScroll { horizontal: true, dir: 1 });
+    s.dispatch(Command::NavPageScroll {
+        horizontal: true,
+        dir: 1,
+    });
     assert_eq!(s.active(), addr("I21"));
 }
 

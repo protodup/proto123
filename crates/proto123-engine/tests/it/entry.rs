@@ -50,9 +50,16 @@ fn quote_prefixes_choose_alignment_and_keep_the_prefix_for_the_formula_bar() {
     let content = s.calc().content(addr("A1")).cloned();
     assert_eq!(
         content,
-        Some(CellContent::Label { text: "Title".into(), align: Alignment::Center, prefix: Some('^') })
+        Some(CellContent::Label {
+            text: "Title".into(),
+            align: Alignment::Center,
+            prefix: Some('^')
+        })
     );
-    assert_eq!(content.map(|c| c.formula_bar_text()), Some("^Title".to_owned()));
+    assert_eq!(
+        content.map(|c| c.formula_bar_text()),
+        Some("^Title".to_owned())
+    );
 }
 
 #[test]
@@ -101,8 +108,18 @@ fn erasing_the_buffer_clears_the_cell() {
 
 #[test]
 fn plain_number_classification() {
-    for (text, expect) in [("5", 5.0), ("5.", 5.0), (".5", 0.5), ("-12.75", -12.75), (" 1.5E3 ", 1500.0)] {
-        assert_eq!(classify_entry(text), Ok(Some(CellContent::Number(expect))), "{text:?}");
+    for (text, expect) in [
+        ("5", 5.0),
+        ("5.", 5.0),
+        (".5", 0.5),
+        ("-12.75", -12.75),
+        (" 1.5E3 ", 1500.0),
+    ] {
+        assert_eq!(
+            classify_entry(text),
+            Ok(Some(CellContent::Number(expect))),
+            "{text:?}"
+        );
     }
     assert_eq!(classify_entry(""), Ok(None));
 }

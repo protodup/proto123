@@ -6,7 +6,10 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
 fn key(k: Key) -> RawKind {
-    RawKind::Key { key: k, mods: Mods::default() }
+    RawKind::Key {
+        key: k,
+        mods: Mods::default(),
+    }
 }
 
 fn event(kind: RawKind) -> RawEvent {
@@ -18,7 +21,11 @@ fn ready_session() -> (Session, proto123_tui::LayoutMap) {
     let area = Rect::new(0, 0, 80, 24);
     let mut buf = Buffer::empty(area);
     let mut mapper = InputMapper::new(GridMetrics::DEFAULT);
-    let resize = mapper.map(event(RawKind::Resize { cols: 80, rows: 24 }), &proto123_tui::LayoutMap::default(), &s);
+    let resize = mapper.map(
+        event(RawKind::Resize { cols: 80, rows: 24 }),
+        &proto123_tui::LayoutMap::default(),
+        &s,
+    );
     for c in resize {
         s.dispatch(c);
     }
@@ -43,7 +50,10 @@ fn printable_key_starts_an_entry_and_enter_commits_downward() {
     }
     assert_eq!(s.mode(), proto123_engine::Mode::Value);
     let cmds = mapper.map(event(key(Key::Enter)), &map, &s);
-    assert_eq!(cmds, vec![Command::CellCommitEdit(Then::Move { dcol: 0, drow: 1 })]);
+    assert_eq!(
+        cmds,
+        vec![Command::CellCommitEdit(Then::Move { dcol: 0, drow: 1 })]
+    );
 }
 
 #[test]
@@ -60,7 +70,11 @@ fn nothing_mutates_below_the_minimum_size() {
     let (s, _) = ready_session();
     let mut mapper = InputMapper::new(GridMetrics::DEFAULT);
     let empty = proto123_tui::LayoutMap::default();
-    assert!(mapper.map(event(key(Key::Char('1'))), &empty, &s).is_empty());
+    assert!(
+        mapper
+            .map(event(key(Key::Char('1'))), &empty, &s)
+            .is_empty()
+    );
     assert!(mapper.map(event(key(Key::Right)), &empty, &s).is_empty());
 }
 
@@ -68,9 +82,17 @@ fn nothing_mutates_below_the_minimum_size() {
 fn resize_passes_through_as_visible_grid_size() {
     let s = Session::new(high_contrast());
     let mut mapper = InputMapper::new(GridMetrics::DEFAULT);
-    let cmds = mapper.map(event(RawKind::Resize { cols: 80, rows: 24 }), &proto123_tui::LayoutMap::default(), &s);
+    let cmds = mapper.map(
+        event(RawKind::Resize { cols: 80, rows: 24 }),
+        &proto123_tui::LayoutMap::default(),
+        &s,
+    );
     assert_eq!(cmds, vec![Command::SessionResize { cols: 8, rows: 20 }]);
-    let below = mapper.map(event(RawKind::Resize { cols: 79, rows: 24 }), &proto123_tui::LayoutMap::default(), &s);
+    let below = mapper.map(
+        event(RawKind::Resize { cols: 79, rows: 24 }),
+        &proto123_tui::LayoutMap::default(),
+        &s,
+    );
     assert!(below.is_empty());
 }
 

@@ -34,7 +34,9 @@ impl Sheet {
     }
 
     pub fn value(&self, addr: CellAddr) -> Value {
-        self.cells.get(&addr).map_or(Value::Empty, |c| c.value.clone())
+        self.cells
+            .get(&addr)
+            .map_or(Value::Empty, |c| c.value.clone())
     }
 
     /// Replaces the content of a cell. `None` erases it and removes the entry.
@@ -74,8 +76,12 @@ impl Sheet {
                 }
             }
         } else {
-            let mut hits: Vec<(CellAddr, &Cell)> =
-                self.cells.iter().filter(|(a, _)| range.contains(**a)).map(|(a, c)| (*a, c)).collect();
+            let mut hits: Vec<(CellAddr, &Cell)> = self
+                .cells
+                .iter()
+                .filter(|(a, _)| range.contains(**a))
+                .map(|(a, c)| (*a, c))
+                .collect();
             hits.sort_unstable_by_key(|(a, _)| *a);
             for (addr, cell) in hits {
                 f(addr, cell);

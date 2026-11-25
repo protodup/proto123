@@ -52,10 +52,23 @@ pub const LAYERS: &[(&str, Layer)] = &[
 ];
 
 /// Third-party UI, terminal, and browser crates that must not appear at each layer.
-const UI_LIBS_BELOW_L5: &[&str] = &["ratatui", "crossterm", "ratzilla", "web-sys", "wasm-bindgen"];
+const UI_LIBS_BELOW_L5: &[&str] = &[
+    "ratatui",
+    "crossterm",
+    "ratzilla",
+    "web-sys",
+    "wasm-bindgen",
+];
 const UI_LIBS_IN_L5: &[&str] = &["crossterm", "ratzilla", "web-sys", "wasm-bindgen"];
 /// Graphical-session and GPU crates that the native terminal app must never pull in (FR-044).
-const GRAPHICAL_LIBS: &[&str] = &["x11", "x11rb", "x11-clipboard", "wayland-client", "wgpu", "glutin"];
+const GRAPHICAL_LIBS: &[&str] = &[
+    "x11",
+    "x11rb",
+    "x11-clipboard",
+    "wayland-client",
+    "wgpu",
+    "glutin",
+];
 
 /// One direct dependency of a workspace package.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -84,7 +97,10 @@ pub fn check(pkgs: &[Pkg]) -> Vec<String> {
     let mut out = Vec::new();
     for pkg in pkgs {
         let Some(layer) = layer_of(&pkg.name) else {
-            out.push(format!("{} is a workspace member but is not registered in LAYERS", pkg.name));
+            out.push(format!(
+                "{} is a workspace member but is not registered in LAYERS",
+                pkg.name
+            ));
             continue;
         };
         for dep in &pkg.deps {
@@ -94,7 +110,10 @@ pub fn check(pkgs: &[Pkg]) -> Vec<String> {
             let dep_is_member = members.contains(&dep.name.as_str());
             if dep_is_member {
                 let Some(dep_layer) = layer_of(&dep.name) else {
-                    out.push(format!("{} depends on unregistered member {}", pkg.name, dep.name));
+                    out.push(format!(
+                        "{} depends on unregistered member {}",
+                        pkg.name, dep.name
+                    ));
                     continue;
                 };
                 if dep_layer == Layer::Support {
@@ -103,7 +122,10 @@ pub fn check(pkgs: &[Pkg]) -> Vec<String> {
                         pkg.name
                     ));
                 } else if dep_layer == Layer::Tooling {
-                    out.push(format!("{} depends on xtask (Tooling); tooling must not be a dependency", pkg.name));
+                    out.push(format!(
+                        "{} depends on xtask (Tooling); tooling must not be a dependency",
+                        pkg.name
+                    ));
                 } else if dep_layer.rank() > layer.rank() {
                     out.push(format!(
                         "{} ({}) -> {} ({})",
@@ -120,14 +142,21 @@ pub fn check(pkgs: &[Pkg]) -> Vec<String> {
                     _ => &[],
                 };
                 if banned.contains(&dep.name.as_str()) {
-                    out.push(format!("{} ({}) depends on {}", pkg.name, layer.label(), dep.name));
+                    out.push(format!(
+                        "{} ({}) depends on {}",
+                        pkg.name,
+                        layer.label(),
+                        dep.name
+                    ));
                 }
             }
         }
         if pkg.name == "proto123-term" {
             for lib in GRAPHICAL_LIBS {
                 if pkg.transitive_normal.iter().any(|n| n == lib) {
-                    out.push(format!("proto123-term reaches graphical-session crate {lib} (FR-044)"));
+                    out.push(format!(
+                        "proto123-term reaches graphical-session crate {lib} (FR-044)"
+                    ));
                 }
             }
         }

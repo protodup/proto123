@@ -37,7 +37,8 @@ impl CellSource for SheetSource<'_> {
     }
 
     fn for_each_in_range(&self, range: CellRange, f: &mut dyn FnMut(CellAddr, &Value)) {
-        self.0.for_each_populated_in(range, |addr, cell| f(addr, &cell.value));
+        self.0
+            .for_each_populated_in(range, |addr, cell| f(addr, &cell.value));
     }
 }
 
@@ -52,6 +53,10 @@ impl CalcSheet {
 
     pub fn sheet(&self) -> &Sheet {
         &self.workbook.sheet
+    }
+
+    pub fn graph(&self) -> &DependencyGraph {
+        &self.graph
     }
 
     pub fn value(&self, addr: CellAddr) -> Value {
@@ -87,7 +92,10 @@ impl CalcSheet {
 
         let mut report = RecalcReport::default();
         for addr in &order {
-            let before = old_values.get(addr).cloned().unwrap_or_else(|| self.value(*addr));
+            let before = old_values
+                .get(addr)
+                .cloned()
+                .unwrap_or_else(|| self.value(*addr));
             let after = match self.content(*addr) {
                 Some(CellContent::Formula(f)) => {
                     let v = evaluate(&f.expr, &SheetSource(&self.workbook.sheet));
@@ -107,11 +115,16 @@ impl CalcSheet {
         let mut unreached: Vec<CellAddr> = dirty
             .iter()
             .copied()
-            .filter(|a| !processed.contains(a) && matches!(self.content(*a), Some(CellContent::Formula(_))))
+            .filter(|a| {
+                !processed.contains(a) && matches!(self.content(*a), Some(CellContent::Formula(_)))
+            })
             .collect();
         unreached.sort_unstable();
         for addr in unreached {
-            let before = old_values.get(&addr).cloned().unwrap_or_else(|| self.value(addr));
+            let before = old_values
+                .get(&addr)
+                .cloned()
+                .unwrap_or_else(|| self.value(addr));
             let circ = Value::Error(ErrorKind::Circ);
             self.workbook.sheet.set_value(addr, circ.clone());
             report.evaluated.push(addr);
@@ -124,7 +137,10 @@ impl CalcSheet {
 
     /// Breadth-first walk from the changed cells over reverse edges, recording every edge
     /// `source → dependent` so the topological pass can order them.
-    fn collect_dirty(&self, changed: &[CellAddr]) -> (HashSet<CellAddr>, HashMap<CellAddr, Vec<CellAddr>>) {
+    fn collect_dirty(
+        &self,
+        changed: &[CellAddr],
+    ) -> (HashSet<CellAddr>, HashMap<CellAddr, Vec<CellAddr>>) {
         let mut dirty: HashSet<CellAddr> = changed.iter().copied().collect();
         let mut successors: HashMap<CellAddr, Vec<CellAddr>> = HashMap::new();
         let mut queue: VecDeque<CellAddr> = changed.iter().copied().collect();
@@ -142,7 +158,10 @@ impl CalcSheet {
 
 /// Kahn's algorithm over the recorded edges. Returns the nodes that reached in-degree zero,
 /// in dependency order. Nodes never returned are on a cycle or downstream of one.
-fn topo_order(dirty: &HashSet<CellAddr>, successors: &HashMap<CellAddr, Vec<CellAddr>>) -> Vec<CellAddr> {
+fn topo_order(
+    dirty: &HashSet<CellAddr>,
+    successors: &HashMap<CellAddr, Vec<CellAddr>>,
+) -> Vec<CellAddr> {
     let mut indegree: HashMap<CellAddr, usize> = dirty.iter().map(|a| (*a, 0)).collect();
     for targets in successors.values() {
         for t in targets {
@@ -151,7 +170,11 @@ fn topo_order(dirty: &HashSet<CellAddr>, successors: &HashMap<CellAddr, Vec<Cell
             }
         }
     }
-    let mut zero: Vec<CellAddr> = indegree.iter().filter(|(_, d)| **d == 0).map(|(a, _)| *a).collect();
+    let mut zero: Vec<CellAddr> = indegree
+        .iter()
+        .filter(|(_, d)| **d == 0)
+        .map(|(a, _)| *a)
+        .collect();
     zero.sort_unstable();
     let mut ready: VecDeque<CellAddr> = zero.into();
     let mut order = Vec::with_capacity(dirty.len());

@@ -4,3 +4,5 @@ mod eval;
 mod parse;
 #[cfg(test)]
 mod semantics;
+#[cfg(test)]
+mod shift;

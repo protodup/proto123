@@ -1,0 +1,14 @@
+.git/
+target/
+dist/
+log/
+plan/
+*.log*
+.env*
+.idea/
+.vscode/
+.claude/
+.agents/
+coverage/
+Dockerfile*
+.dockerignore

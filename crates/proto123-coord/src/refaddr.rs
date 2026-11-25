@@ -54,7 +54,11 @@ impl RefAddr {
             return RefSyntax::OutOfGrid;
         };
         match CellAddr::new(col, row) {
-            Some(addr) => RefSyntax::Valid(RefAddr { addr, col_abs, row_abs }),
+            Some(addr) => RefSyntax::Valid(RefAddr {
+                addr,
+                col_abs,
+                row_abs,
+            }),
             None => RefSyntax::OutOfGrid,
         }
     }
@@ -72,7 +76,10 @@ impl RefAddr {
     pub fn shifted(self, dc: i64, dr: i64) -> Option<Self> {
         let dc = if self.col_abs { 0 } else { dc };
         let dr = if self.row_abs { 0 } else { dr };
-        Some(Self { addr: self.addr.offset(dc, dr)?, ..self })
+        Some(Self {
+            addr: self.addr.offset(dc, dr)?,
+            ..self
+        })
     }
 }
 

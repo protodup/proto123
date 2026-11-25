@@ -7,7 +7,11 @@ fn sig15(n: f64) -> (Vec<u8>, i32) {
     let text = format!("{:.14e}", n.abs());
     let (mantissa, exp) = text.split_once('e').unwrap_or((text.as_str(), "0"));
     let exp: i32 = exp.parse().unwrap_or(0);
-    let mut digits: Vec<u8> = mantissa.bytes().filter(u8::is_ascii_digit).map(|b| b - b'0').collect();
+    let mut digits: Vec<u8> = mantissa
+        .bytes()
+        .filter(u8::is_ascii_digit)
+        .map(|b| b - b'0')
+        .collect();
     while digits.len() > 1 && digits.last() == Some(&0) {
         digits.pop();
     }
@@ -93,7 +97,11 @@ fn fixed_text(digits: &[u8], exp: i32) -> String {
 fn sci_text(digits: &[u8], exp: i32) -> String {
     let mut mantissa = String::new();
     mantissa.push(char::from(b'0' + digits.first().copied().unwrap_or(0)));
-    let frac: String = digits.iter().skip(1).map(|&d| char::from(b'0' + d)).collect();
+    let frac: String = digits
+        .iter()
+        .skip(1)
+        .map(|&d| char::from(b'0' + d))
+        .collect();
     let frac = frac.trim_end_matches('0');
     if !frac.is_empty() {
         mantissa.push('.');

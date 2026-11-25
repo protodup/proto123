@@ -29,7 +29,10 @@ impl DependencyGraph {
         let mut seen = HashSet::new();
         let cells: Vec<CellAddr> = cells.into_iter().filter(|c| seen.insert(*c)).collect();
         let mut seen_ranges = HashSet::new();
-        let ranges: Vec<CellRange> = ranges.into_iter().filter(|r| seen_ranges.insert(*r)).collect();
+        let ranges: Vec<CellRange> = ranges
+            .into_iter()
+            .filter(|r| seen_ranges.insert(*r))
+            .collect();
         for cell in &cells {
             self.cell_dependents.entry(*cell).or_default().insert(addr);
         }
@@ -56,9 +59,32 @@ impl DependencyGraph {
 
     /// Distinct formula cells that read `addr` directly or through a range.
     pub fn dependents_of(&self, addr: CellAddr) -> Vec<CellAddr> {
-        let mut out: HashSet<CellAddr> = self.cell_dependents.get(&addr).cloned().unwrap_or_default();
+        let mut out: HashSet<CellAddr> =
+            self.cell_dependents.get(&addr).cloned().unwrap_or_default();
         for (range, formula) in &self.range_dependents {
             if range.contains(addr) {
+                out.insert(*formula);
+            }
+        }
+        let mut list: Vec<CellAddr> = out.into_iter().collect();
+        list.sort_unstable();
+        list
+    }
+
+    /// Distinct formula cells that read any cell in `range`, directly or via an intersecting range.
+    pub fn dependents_of_range(&self, range: CellRange) -> Vec<CellAddr> {
+        let mut out: HashSet<CellAddr> = HashSet::new();
+        for (cell, deps) in &self.cell_dependents {
+            if range.contains(*cell) {
+                out.extend(deps.iter().copied());
+            }
+        }
+        for (r, formula) in &self.range_dependents {
+            let intersects = r.start().col() <= range.end().col()
+                && range.start().col() <= r.end().col()
+                && r.start().row() <= range.end().row()
+                && range.start().row() <= r.end().row();
+            if intersects {
                 out.insert(*formula);
             }
         }

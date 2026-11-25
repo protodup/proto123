@@ -64,7 +64,9 @@ fn ten_thousand_deep_chain_recalculates_correctly() {
 #[test]
 fn whole_grid_sum_reads_only_the_populated_cells() {
     let mut calc = CalcSheet::new();
-    let mut batch: Vec<_> = (0..10u32).map(|r| (row(r), Some(CellContent::Number(f64::from(r + 1))))).collect();
+    let mut batch: Vec<_> = (0..10u32)
+        .map(|r| (row(r), Some(CellContent::Number(f64::from(r + 1)))))
+        .collect();
     // The formula sits in the last row, outside the range it sums (so it is not a cycle).
     batch.push((at("C1048576"), formula("SUM(A1:XFD1048575)")));
     calc.apply(&batch);

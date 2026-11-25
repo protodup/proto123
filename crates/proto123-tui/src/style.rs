@@ -2,7 +2,7 @@
 //! the terminal's own palette applies.
 
 use proto123_theme::{Ansi16, Color, Pair};
-use ratatui::style::{Color as TuiColor, Style};
+use ratatui::style::{Color as TuiColor, Modifier, Style};
 
 pub(crate) fn color(c: Color) -> TuiColor {
     match c {
@@ -30,4 +30,15 @@ pub(crate) fn color(c: Color) -> TuiColor {
 
 pub(crate) fn style(pair: Pair) -> Style {
     Style::default().fg(color(pair.fg)).bg(color(pair.bg))
+}
+
+/// Applies `modifier` to `pair`, omitting `BOLD` and `UNDERLINED` when `allow_bold` is false
+/// (research R6, FR-048: console terminals turn bold/underline into unintended color shifts).
+pub(crate) fn style_with_modifier(pair: Pair, modifier: Modifier, allow_bold: bool) -> Style {
+    let safe = if allow_bold {
+        modifier
+    } else {
+        modifier.difference(Modifier::BOLD | Modifier::UNDERLINED)
+    };
+    style(pair).add_modifier(safe)
 }

@@ -28,81 +28,48 @@ On Windows 11, **Smart App Control** can occasionally block `cargo`, `rustc`, or
 
 ### 1. Native Terminal App (`proto123-term`)
 
-Run the TUI directly in your terminal (Linux, macOS, Windows Terminal, or WSL):
+Run the TUI directly in your terminal (Linux, macOS, Windows Terminal, or the Linux virtual console):
 
 ```sh
-cargo run -p proto123-term                                   # empty workbook
-cargo run -p proto123-term -- corpus/valid/basic_formulas.ods # open a local .ods/.xlsx/.csv file
-cargo run -p proto123-term -- https://example.com/budget.ods  # load over HTTP(S)
+cargo run --release -p proto123-term                          # empty workbook
+TERM=linux cargo run -p proto123-term                        # force console16 + box glyphs
+cargo run -p proto123-term -- --theme mono --glyphs ascii    # override detected profile
 ```
 
-- **Mouse:** the app enables terminal mouse reporting on start (click, double-click, drag, wheel, hover). Most modern terminals support it; inside `tmux` enable `set -g mouse on`. Over SSH or in terminals without mouse reporting, keyboard operation stays complete.
-- **Saving:** `Ctrl+S` / `/File/Save ODS` writes `.ods` to the local filesystem.
+*(Opening `.ods`/`.xlsx`/`.csv` files or URLs from the command line or `/File` is deferred to Spec 002.)*
+
+- **Mouse:** the app enables terminal mouse reporting on start (click, double-click, drag, wheel, hover). Most modern terminals support it; inside `tmux` enable `set -g mouse on`. Over SSH or in the Linux virtual console without mouse reporting, keyboard operation stays complete.
+- **Quit:** `Ctrl+Q` in `READY` restores the terminal and exits.
 - If the app exits abnormally and leaves the terminal in a strange state, run `reset`.
 
 ### 2. Local Web App (Browser TUI on Canvas)
 
-Serve the WASM app locally with hot-reload:
+Install Trunk (`cargo install --locked trunk --version 0.22.2`) and serve the WASM app locally with hot-reload:
 
 ```sh
-trunk serve --open
+trunk serve --open            # http://127.0.0.1:8080 (works offline after first load)
 ```
 
-To test loading a spreadsheet directly from a local/remote URL via `fetch()`, place a sample `.ods` file in `web/samples/` (or any static endpoint) and pass the query parameter:
-
-```text
-http://127.0.0.1:8080/?file=/samples/budget.ods
-```
+*(Loading `?file=...` via `fetch()` is deferred to Spec 002.)*
 
 To build the optimized production static bundle (`dist/`):
 
 ```sh
 trunk build --release
-cargo xtask wasm          # verifies wasm32 build, runs wasm-opt -Oz, and reports compressed .wasm size
+cargo xtask wasm              # builds L0-L5 for wasm32, runs trunk release, reports raw + gzip size
 ```
 
-### 3. Headless CLI (`proto123-cli`)
+### 3. Headless CLI (`proto123-cli`) *(Spec 002)*
 
-Every engine operation is accessible without a browser or terminal UI:
-
-```sh
-# Inspect structure, sheets, formula counts, and ODF 1.3 diagnostics
-cargo run --release -p proto123-cli -- inspect corpus/valid/basic_formulas.ods
-
-# Recalculate DAG and write a fresh ODF 1.3 compliant .ods
-cargo run --release -p proto123-cli -- recalc input.ods -o output.ods
-
-# Import .xlsx or .csv and write .ods (the only output format)
-cargo run --release -p proto123-cli -- convert input.xlsx -o output.ods
-
-# Execute scripted commands in sandboxed automation mode (enforces root boundaries)
-cargo run --release -p proto123-cli -- exec script.json \
-  --read-root ./work/in \
-  --write-root ./work/out
-```
+The headless CLI (`inspect`, `recalc`, `convert`, `exec`) is deferred to Spec 002.
 
 ### 4. Docker Execution (Web Target)
 
-Build and run the multi-stage container (compiles Rust -> WASM + `wasm-opt` in the builder stage, serves static assets from a minimal server in the runtime stage):
+Build and verify the multi-stage container (compiles Rust -> WASM + `wasm-opt -Oz` in the builder stage, serves `dist/` via `nginx:alpine` with `Content-Type: application/wasm`):
 
 ```sh
-docker build -t proto123:local .
-docker run --rm -p 8080:80 proto123:local
-```
-
-To mount a local directory of `.ods` spreadsheets so the containerized app can load them via `fetch()`:
-
-```sh
-docker run --rm -p 8080:80 \
-  -v "$PWD/corpus/valid:/usr/share/nginx/html/sheets:ro" \
-  proto123:local
-# Then open: http://127.0.0.1:8080/?file=/sheets/basic_formulas.ods
-```
-
-Verify the container build and required HTTP headers (`Content-Type: application/wasm` for `.wasm` and `Content-Type: application/vnd.oasis.opendocument.spreadsheet` for `.ods`):
-
-```sh
-cargo xtask docker-check
+cargo xtask docker-check      # builds proto123:check, GETs / and *.wasm, checks application/wasm
+docker run --rm -p 8080:80 proto123:check
 ```
 
 ---
@@ -113,18 +80,16 @@ Run the full verification gate or targeted checks via `cargo xtask`:
 
 ```sh
 cargo test --workspace            # run all unit, integration, and doc tests
-cargo xtask test                  # runs cargo-nextest (when installed) + doctests
-cargo xtask ci                    # full CI gate: fmt, clippy, layers, menu-commands, tests, panic_hunt, doctests, wasm, ods-conformance
-cargo xtask ci lint               # fast lint leg (fmt, clippy, layers, menu-commands) with no test binaries
+cargo xtask ci                    # fmt, clippy, layers, menu-commands, test --workspace, wasm
 cargo xtask layers                # verify L0-L6 unidirectional dependency graph (xtask/src/layers.rs)
 cargo xtask menu-commands         # verify every '/' menu entry resolves to a live CommandId
-cargo xtask wasm                  # compile wasm32-unknown-unknown + wasm-opt + report compressed .wasm size
-cargo build -p proto123-term    # build the native terminal target
-cargo xtask ods-conformance       # validate ODF 1.3 ZIP/XML/OpenFormula round-trips across corpus/
-cargo xtask parity                # regenerate docs/parity-checklist.md (Keyboard / Mouse / CLI coverage)
-cargo xtask docker-check          # verify multi-stage Dockerfile and WASM/ODS MIME types
-cargo xtask stats                 # test counts and line counts per crate
+cargo xtask wasm                  # compile wasm32-unknown-unknown + trunk release + gzip size report
+cargo build -p proto123-term      # build the native terminal target
+cargo xtask docker-check          # verify multi-stage Dockerfile and application/wasm MIME type
+cargo test -p proto123-engine --test panic_hunt -- --ignored   # hostile-input sweep
 ```
+
+*(Deferred to Spec 002+: `cargo xtask ods-conformance`, `cargo xtask parity`, `cargo xtask stats`, `cargo xtask test`.)*
 
 ### Build Profile Tuning
 

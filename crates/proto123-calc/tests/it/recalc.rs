@@ -19,7 +19,11 @@ fn formula(body: &str) -> Option<CellContent> {
 #[test]
 fn sum_updates_when_an_input_changes() {
     let mut calc = CalcSheet::new();
-    calc.apply(&[(at("A1"), num(120.0)), (at("A2"), num(80.0)), (at("A3"), formula("SUM(A1:A2)"))]);
+    calc.apply(&[
+        (at("A1"), num(120.0)),
+        (at("A2"), num(80.0)),
+        (at("A3"), formula("SUM(A1:A2)")),
+    ]);
     assert_eq!(calc.value(at("A3")), Value::Number(200.0));
     calc.apply(&[(at("A1"), num(150.0))]);
     assert_eq!(calc.value(at("A3")), Value::Number(230.0));
@@ -28,7 +32,11 @@ fn sum_updates_when_an_input_changes() {
 #[test]
 fn evaluates_exactly_the_transitive_dependents_once_in_order() {
     let mut calc = CalcSheet::new();
-    calc.apply(&[(at("A1"), num(1.0)), (at("B1"), formula("A1+1")), (at("C1"), formula("B1*2"))]);
+    calc.apply(&[
+        (at("A1"), num(1.0)),
+        (at("B1"), formula("A1+1")),
+        (at("C1"), formula("B1*2")),
+    ]);
     let report = calc.apply(&[(at("A1"), num(5.0))]);
     assert_eq!(report.evaluated, vec![at("B1"), at("C1")]);
     assert_eq!(calc.value(at("C1")), Value::Number(12.0));
@@ -37,7 +45,11 @@ fn evaluates_exactly_the_transitive_dependents_once_in_order() {
 #[test]
 fn unrelated_cells_are_not_evaluated() {
     let mut calc = CalcSheet::new();
-    calc.apply(&[(at("A1"), num(1.0)), (at("B1"), formula("A1+1")), (at("D9"), formula("7*6"))]);
+    calc.apply(&[
+        (at("A1"), num(1.0)),
+        (at("B1"), formula("A1+1")),
+        (at("D9"), formula("7*6")),
+    ]);
     let report = calc.apply(&[(at("A1"), num(2.0))]);
     assert!(!report.evaluated.contains(&at("D9")));
     assert_eq!(report.evaluated, vec![at("B1")]);
@@ -70,7 +82,11 @@ fn self_reference_shows_circ() {
 #[test]
 fn two_cycle_with_dependent_and_recovery() {
     let mut calc = CalcSheet::new();
-    calc.apply(&[(at("A1"), formula("B1")), (at("B1"), formula("A1")), (at("C1"), formula("A1+1"))]);
+    calc.apply(&[
+        (at("A1"), formula("B1")),
+        (at("B1"), formula("A1")),
+        (at("C1"), formula("A1+1")),
+    ]);
     assert_eq!(calc.value(at("A1")), Value::Error(ErrorKind::Circ));
     assert_eq!(calc.value(at("B1")), Value::Error(ErrorKind::Circ));
     assert_eq!(calc.value(at("C1")), Value::Error(ErrorKind::Circ));

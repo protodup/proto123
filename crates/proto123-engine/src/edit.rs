@@ -1,10 +1,12 @@
-//! Entry and editing handlers: READY → VALUE/LABEL/EDIT, buffer editing, commit, cancel
+//! Entry and editing handlers: READY → VALUE/LABEL/EDIT/POINT, buffer editing, commit, cancel
 //! (FR-004, FR-015, FR-023; data-model.md "Mode transitions").
 
 use crate::command::{CaretKey, Then};
 use crate::entry::classify_entry;
 use crate::session::{EditState, Mode, Session, Status, StatusKind};
 use crate::strings::StringKey;
+use proto123_coord::CellAddr;
+use proto123_ops::Op;
 
 /// Byte offset of a character index (clamped to the end).
 fn byte_index(s: &str, char_idx: usize) -> usize {
@@ -17,7 +19,10 @@ fn char_len(s: &str) -> usize {
 
 impl Session {
     fn is_editing(&self) -> bool {
-        matches!(self.mode(), Mode::Value | Mode::Label | Mode::Edit)
+        matches!(
+            self.mode(),
+            Mode::Value | Mode::Label | Mode::Edit | Mode::Point
+        )
     }
 
     /// First printable key in READY: digits and `+ - . ( @ =` start a VALUE entry;
@@ -32,27 +37,58 @@ impl Session {
             Mode::Label
         };
         self.set_mode(mode);
-        self.set_edit(Some(EditState { buffer: c.to_string(), caret: 1 }));
+        self.set_edit(Some(EditState {
+            buffer: c.to_string(),
+            caret: 1,
+            origin_mode: mode,
+            point: None,
+        }));
     }
 
-    /// `F2`: edit the active cell's formula-bar text with the caret at the end.
-    pub(crate) fn begin_edit(&mut self) {
+    /// `F2`, double-click, or formula-bar click: edit existing content or reposition caret.
+    pub(crate) fn begin_edit_at(&mut self, addr: Option<CellAddr>, caret: Option<usize>) {
+        if self.is_editing() && addr.is_none() {
+            if let Some(target_caret) = caret
+                && let Some(mut edit) = self.edit().cloned()
+            {
+                if self.mode() == Mode::Point {
+                    self.set_mode(edit.origin_mode);
+                    self.set_extend_mode(false);
+                }
+                edit.caret = target_caret.min(char_len(&edit.buffer));
+                edit.point = None;
+                self.set_edit(Some(edit));
+            }
+            return;
+        }
         if self.mode() != Mode::Ready {
             return;
+        }
+        if let Some(a) = addr {
+            self.set_active(a);
         }
         let buffer = self
             .calc()
             .content(self.active())
             .map(|c| c.formula_bar_text())
             .unwrap_or_default();
-        let caret = char_len(&buffer);
-        self.set_edit(Some(EditState { buffer, caret }));
+        let len = char_len(&buffer);
+        let pos = caret.map_or(len, |c| c.min(len));
+        self.set_edit(Some(EditState {
+            buffer,
+            caret: pos,
+            origin_mode: Mode::Edit,
+            point: None,
+        }));
         self.set_mode(Mode::Edit);
     }
 
     pub(crate) fn edit_input(&mut self, c: char) {
         if !self.is_editing() {
             return;
+        }
+        if self.mode() == Mode::Point {
+            self.exit_point_keeping_ref();
         }
         let Some(mut edit) = self.edit().cloned() else {
             return;
@@ -66,6 +102,9 @@ impl Session {
     pub(crate) fn edit_caret(&mut self, key: CaretKey) {
         if !self.is_editing() {
             return;
+        }
+        if self.mode() == Mode::Point {
+            self.exit_point_keeping_ref();
         }
         let Some(mut edit) = self.edit().cloned() else {
             return;
@@ -101,6 +140,9 @@ impl Session {
         if !self.is_editing() {
             return false;
         }
+        if self.mode() == Mode::Point {
+            self.exit_point_keeping_ref();
+        }
         let Some(edit) = self.edit().cloned() else {
             return false;
         };
@@ -108,7 +150,12 @@ impl Session {
             Ok(content) => content,
             Err(e) => {
                 let caret = e.pos.min(char_len(&edit.buffer));
-                self.set_edit(Some(EditState { buffer: edit.buffer, caret }));
+                self.set_edit(Some(EditState {
+                    buffer: edit.buffer,
+                    caret,
+                    origin_mode: edit.origin_mode,
+                    point: None,
+                }));
                 let hint = e.quote_hint.then_some(StringKey::DiagUseQuoteForText);
                 self.set_status(Status {
                     key: StringKey::DiagSyntax,
@@ -120,10 +167,13 @@ impl Session {
             }
         };
         self.set_edit(None);
+        self.set_extend_mode(false);
         self.set_mode(Mode::Ready);
         let active = self.active();
-        let report = self.calc_mut().apply(&[(active, content)]);
-        let changed = !report.changed_display.is_empty();
+        let changed = self.apply_op(Op::SetCell {
+            addr: active,
+            content,
+        });
         match then {
             Then::Move { dcol, drow } => self.move_relative(dcol, drow),
             Then::Select(addr) => self.set_active(addr),
@@ -137,6 +187,7 @@ impl Session {
             return;
         }
         self.set_edit(None);
+        self.set_extend_mode(false);
         self.set_mode(Mode::Ready);
     }
 }

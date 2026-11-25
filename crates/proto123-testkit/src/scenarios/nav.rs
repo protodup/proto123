@@ -8,6 +8,10 @@ pub fn scenarios() -> Vec<Scenario> {
     vec![Scenario {
         name: "nav-clamps-at-a1",
         script: "<left><up><up>",
-        expect: Snapshot { mode: Mode::Ready, active: "A1".to_owned(), cells: BTreeMap::new() },
+        expect: Snapshot {
+            mode: Mode::Ready,
+            active: "A1".to_owned(),
+            cells: BTreeMap::new(),
+        },
     }]
 }

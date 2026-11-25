@@ -40,7 +40,10 @@ fn round_trip_on_a_table_of_formulas() {
         let first = Formula::parse(text.trim_start_matches('=')).expect("parses");
         let second = Formula::parse(first.canonical.trim_start_matches('=')).expect("reparses");
         assert_eq!(first.expr, second.expr, "round trip of {text}");
-        assert_eq!(first.canonical, second.canonical, "stable canonical of {text}");
+        assert_eq!(
+            first.canonical, second.canonical,
+            "stable canonical of {text}"
+        );
     }
 }
 
@@ -54,7 +57,10 @@ fn at_shorthand_is_accepted_for_functions_only() {
 fn literals_and_bare_names() {
     assert_eq!(canon("true"), "=TRUE");
     assert!(matches!(Formula::parse("1.5E3").unwrap().expr, Expr::Number(n) if n == 1500.0));
-    assert!(matches!(Formula::parse("TOTAL").unwrap().expr, Expr::ErrorLit(_)));
+    assert!(matches!(
+        Formula::parse("TOTAL").unwrap().expr,
+        Expr::ErrorLit(_)
+    ));
 }
 
 #[test]
@@ -76,9 +82,15 @@ fn unclosed_paren_reports_position_and_kind() {
 #[test]
 fn length_and_depth_limits_are_enforced() {
     let long = "1+".repeat(5_000) + "1";
-    assert_eq!(Formula::parse(&long).unwrap_err().kind, ParseErrorKind::TooLong);
+    assert_eq!(
+        Formula::parse(&long).unwrap_err().kind,
+        ParseErrorKind::TooLong
+    );
     let deep = "(".repeat(300) + "1" + &")".repeat(300);
-    assert_eq!(Formula::parse(&deep).unwrap_err().kind, ParseErrorKind::TooDeep);
+    assert_eq!(
+        Formula::parse(&deep).unwrap_err().kind,
+        ParseErrorKind::TooDeep
+    );
     let many_open = "(".repeat(100_000);
     assert!(Formula::parse(&many_open).is_err());
 }
