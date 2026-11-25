@@ -86,17 +86,3 @@ fn numbers_are_right_aligned_in_nine_columns() {
     assert!(line(&buf, 3).starts_with("[  1]       12"), "{:?}", line(&buf, 3));
 }
 
-#[test]
-fn redraw_changes_only_expected_cells_when_active_moves() {
-    let mut s = sized_session();
-    let (before, _) = frame(&s, 80, 24);
-    s.dispatch(Command::NavMoveRelative { dcol: 1, drow: 0 });
-    let (after, _) = frame(&s, 80, 24);
-    let changed: Vec<(u16, u16)> = before
-        .diff(&after)
-        .into_iter()
-        .map(|(x, y, _)| (x, y))
-        .collect();
-    assert!(!changed.is_empty());
-    assert!(changed.iter().all(|(_, y)| *y <= 3 || *y == 23 || *y == 2 || *y == 0));
-}

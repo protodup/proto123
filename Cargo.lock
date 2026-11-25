@@ -708,7 +708,9 @@ dependencies = [
  "proto123-model",
  "proto123-ops",
  "proto123-theme",
+ "proto123-tui",
  "proto123-value",
+ "ratatui",
 ]
 
 [[package]]

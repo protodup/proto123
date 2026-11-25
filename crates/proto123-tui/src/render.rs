@@ -145,7 +145,15 @@ pub fn render(session: &Session, area: Rect, buf: &mut Buffer) -> LayoutMap {
             let x = area.x + row_w + i * col_w;
             let value = session.calc().value(addr);
             let is_active = addr == active;
-            let cell_st = if is_active { style(tokens.active_cell) } else { style(tokens.grid) };
+            let is_error = matches!(value, Value::Error(_));
+            let cell_st = if is_active {
+                style(tokens.active_cell)
+            } else if is_error {
+                // Error tokens carry their own text, so the error token adds emphasis, not meaning (FR-035).
+                style(tokens.error)
+            } else {
+                style(tokens.grid)
+            };
             let (text_out, align, span) = cell_text(session, addr, &value, col_w, i, grid_cols);
             put(buf, area, x, y, &align_in(&text_out, usize::from(span), align), cell_st);
             map.push(Rect::new(x, y, col_w, 1), HitTarget::GridCell(addr));
@@ -169,7 +177,11 @@ pub fn render(session: &Session, area: Rect, buf: &mut Buffer) -> LayoutMap {
     let status_rect = Rect::new(area.x, status_y, area.width, 1);
     buf.set_style(status_rect, style(tokens.status));
     if let Some(status) = session.status() {
-        put(buf, area, area.x, status_y, &status.message(), style(tokens.status));
+        let st = match status.kind {
+            proto123_engine::StatusKind::Error => style(tokens.error),
+            proto123_engine::StatusKind::Info => style(tokens.status),
+        };
+        put(buf, area, area.x, status_y, &status.message(), st);
     }
     map
 }

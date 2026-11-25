@@ -2,6 +2,7 @@
 
 pub mod nav;
 pub mod us1;
+pub mod us2;
 
 use crate::Scenario;
 
@@ -9,5 +10,6 @@ pub fn all() -> Vec<Scenario> {
     let mut v = Vec::new();
     v.extend(nav::scenarios());
     v.extend(us1::scenarios());
+    v.extend(us2::scenarios());
     v
 }

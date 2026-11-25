@@ -54,3 +54,31 @@ fn oversized_number_never_shows_truncated_digits() {
     let text = row_text(&s, 3);
     assert!(text.contains("1.235E+11"), "{text}");
 }
+
+#[test]
+fn error_tokens_use_the_error_token_colour_and_the_error_status_too() {
+    let mut s = Session::new(high_contrast());
+    s.dispatch(Command::SessionResize { cols: 8, rows: 20 });
+    s.dispatch(Command::CellBeginEntry('='));
+    for c in "10/B1".chars() {
+        s.dispatch(Command::CellEditInput(c));
+    }
+    s.dispatch(Command::CellCommitEdit(Then::Stay));
+    s.dispatch(Command::NavMoveRelative { dcol: 1, drow: 0 });
+    let area = Rect::new(0, 0, 80, 24);
+    let mut buf = Buffer::empty(area);
+    render(&s, area, &mut buf);
+    // "#DIV/0!" is right-aligned in A1's 9 columns: starts at x = 5 + 2.
+    let cell = buf.cell((7, 3)).expect("A1 drawn");
+    assert_eq!(cell.symbol(), "#");
+    assert_eq!(cell.fg, ratatui::style::Color::Rgb(255, 255, 0), "error token colour");
+
+    // A syntax error puts the error status in the error token colour as well.
+    s.dispatch(Command::CellBeginEntry('='));
+    s.dispatch(Command::CellEditInput('('));
+    s.dispatch(Command::CellCommitEdit(Then::Stay));
+    let mut buf = Buffer::empty(area);
+    render(&s, area, &mut buf);
+    let status = buf.cell((0, 23)).expect("status drawn");
+    assert_eq!(status.fg, ratatui::style::Color::Rgb(255, 255, 0), "error status colour");
+}

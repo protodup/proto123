@@ -16,3 +16,7 @@ proto123-formula = { path = "../proto123-formula" }
 proto123-model = { path = "../proto123-model" }
 proto123-calc = { path = "../proto123-calc" }
 proto123-ops = { path = "../proto123-ops" }
+
+[dev-dependencies]
+proto123-tui = { path = "../proto123-tui" }
+ratatui = { workspace = true }
