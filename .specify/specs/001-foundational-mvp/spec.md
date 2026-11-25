@@ -14,7 +14,18 @@ This is the first user-facing slice of Proto123. A person opens the app in a web
 
 **In scope**: one worksheet per workbook, everything listed in the Requirements below, and both targets: the web app and a thin native terminal app for Linux, macOS, and Windows, including the minimal-terminal (Linux console) profile. Both targets run the same core and behave identically, except for the platform differences listed under FR-050. (Clarified 2026-11-25: Q1 → A.)
 
-**Out of scope (deferred)**: saving or opening files (`.ods`, `.xlsx`, `.csv`), remote URL loading, push-to-server, the headless command-line tool, multiple worksheets and sheet tabs, number formats (Fixed, Currency, Percent, Date), column resizing, whole row/column selection from headers, row/column insert and delete, sort, system clipboard integration, the absolute-reference toggle key, Show Formulas, Locked Headers, and the Help menu. These come in Spec 002 or later.
+**Out of scope (deferred)**: saving or opening files (`.ods`, `.xlsx`, `.csv`), remote URL loading, push-to-server, the headless command-line tool, multiple worksheets and sheet tabs, number formats (Fixed, Currency, Percent, Date), column resizing, whole row/column selection from headers, row/column insert and delete, sort, clipboard-style cut/copy/paste (`Ctrl+C`/`Ctrl+X`/`Ctrl+V`, `Edit → Paste`), system clipboard integration, the absolute-reference toggle key, Show Formulas, Locked Headers, and the Help menu. These come in Spec 002 or later.
+
+## Clarifications
+
+### Session 2026-11-25
+
+- Q: Should Copy and Move stay under `Range` as prompt-based commands (source range, then destination), with `docs/interaction-spec.md` §5 and `docs/feature-names.md` §4 updated to match? → A: Yes. `Range → Erase, Copy, Move` use source/destination prompts; both docs are updated to match; no `Ctrl+C`/`Ctrl+X`/`Ctrl+V` bindings in this slice.
+- Q: When the Copy destination is a range larger than the source, should the source repeat to fill it or be pasted once at its top-left cell? → A: Tile. The source repeats in whole copies across the destination; a destination smaller than the source (or a single cell) means "paste once, anchored at its top-left".
+- Q: In `VALUE` or `LABEL` mode, when no reference can be pointed at, what should the arrow keys do? → A: Commit the entry and move one cell in that direction. In `EDIT`, `Left`/`Right` move the caret, `Home`/`End` jump to the buffer's start or end, and `Up`/`Down` commit and move.
+- Q: When a number's full value does not fit its 9-character column, how should it be displayed? → A: Round decimals to fit; if the integer part does not fit or a nonzero value would round to 0, use scientific form (`1.235E+11`, `1.2E-09`); if even that does not fit, fill the cell with `#`.
+- Q: What counts as a plain number on entry, and what happens to digit-led text such as `123 Main St`? → A: A plain number is an optional sign, digits with an optional decimal point, and an optional exponent, with surrounding spaces trimmed. Any other digit-led entry is a formula; if it does not parse, the FR-015 diagnostic tells the user to start the entry with `'` to store it as text.
+- Q: Should the engine calculate in decimal arithmetic (like a BigDecimal type) instead of binary floating point? → A: No. Numbers stay IEEE-754 double precision for interoperability with other ODF suites; the general display format is capped at 15 significant digits so binary artifacts never show (`=0.1+0.2` displays `0.3`).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -35,7 +46,8 @@ A person opens Proto123 (in a browser or in a terminal) and sees an empty grid w
 5. **Given** `A1`=120 and `A2`=80, **When** the user enters `=SUM(A1:A2)` in `A3`, **Then** `A3` displays `200` and the formula bar shows `=SUM(A1:A2)` while `A3` is active.
 6. **Given** the model above, **When** `A1` is changed to 150, **Then** `A3` displays `230` without any manual recalculation step.
 7. **Given** a cell with content, **When** the user presses `F2`, **Then** the mode becomes `EDIT` with the existing raw content in the buffer and the caret at its end. `Esc` discards changes and restores the prior content. `Enter` commits.
-8. **Given** `READY`, **When** the user presses the arrow keys, `Tab`/`Shift+Tab`, `Enter`/`Shift+Enter`, `PgUp`/`PgDn`, `Home`, or `Ctrl+Home`, **Then** the active cell moves as defined in `docs/interaction-spec.md` §3, and the viewport scrolls to keep the active cell visible.
+8. **Given** `VALUE` with buffer `120` in `A1`, **When** the user presses `Right`, **Then** `A1` stores 120, `B1` becomes active, and the mode returns to `READY`. **Given** `EDIT` on the same cell, **When** the user presses `Left`, **Then** the caret moves one character left and nothing is committed.
+9. **Given** `READY`, **When** the user presses the arrow keys, `Tab`/`Shift+Tab`, `Enter`/`Shift+Enter`, `PgUp`/`PgDn`, `Home`, or `Ctrl+Home`, **Then** the active cell moves as defined in `docs/interaction-spec.md` §3, and the viewport scrolls to keep the active cell visible.
 
 ---
 
@@ -57,6 +69,8 @@ A person builds formulas that divide by an empty cell, mistype a function name, 
 6. **Given** a fresh cell, **When** the user enters `=2+3*4`, `=(2+3)*4`, `=-2^2`, `=2^3^2`, and `=10/4`, **Then** the results are `14`, `20`, `4`, `64`, and `2.5`. The precedence and associativity follow OpenFormula: unary minus binds tighter than `^`, and `^` is left-associative.
 7. **Given** a formula whose reference would fall outside the grid limits (for example after a copy shifts it past column 1 or row 1), **Then** the cell shows `#REF!`.
 8. **Given** a syntactically malformed entry such as `=SUM(A1:`, **When** the user presses `Enter`, **Then** the entry is not committed. The session stays in the edit mode with the caret near the problem, and the status bar shows a syntax diagnostic. `Esc` abandons the entry.
+9. **Given** any cell, **When** the user enters `=0.1+0.2`, **Then** the cell, and the value in the live-region announcement, show `0.3`, never `0.30000000000000004`. **When** the user enters `=1-0.9`, **Then** the cell shows `0.1`.
+10. **Given** `READY`, **When** the user enters `123 Main St` and presses `Enter`, **Then** the entry is not committed, and the status-bar diagnostic says that starting it with `'` stores it as text. Entering `'123 Main St` stores a left-aligned label. Entering `1.5E3` stores the number 1500.
 
 ---
 
@@ -74,11 +88,12 @@ A person selects `A1:A3` with `Shift+Arrow` (or with `F8` and plain arrows), ope
 2. **Given** `READY`, **When** the user presses `F8`, **Then** the status bar shows `[EXT]`, and plain arrows extend the selection until `F8` or `Esc` ends extend mode. The selection is kept.
 3. **Given** a selected range, **When** the user runs `/Range Erase` (or presses `Delete`), **Then** every cell in the range becomes empty and dependent formulas recalculate.
 4. **Given** a selected range, **When** the user runs `/Range Copy`, **Then** Proto123 prompts for the source range (pre-filled with the selection) and then for the destination. The user can confirm each prompt by typing a reference, by pointing with the arrow keys, or by clicking or dragging on the grid.
-5. **Given** a copy of formulas, **Then** relative references shift by the copy offset, references marked absolute with `$` (for example `$A$1`, `A$1`, `$A1`) keep their absolute parts, and any reference shifted outside the grid becomes `#REF!`.
-6. **Given** `/Range Move` from `A1:A2` to `C1`, **Then** the contents are relocated, the moved formulas keep pointing at the same cells they referred to before, and formulas elsewhere that referred to the moved cells now refer to their new location. A formula that referred to a destination cell that was overwritten shows `#REF!`.
-7. **Given** a sequence of at least 5 mutating commands, **When** the user presses `Ctrl+Z` (or runs `/Edit Undo`) repeatedly, **Then** each step is reverted in reverse order, and all dependent values recalculate to their earlier results. `Ctrl+Y` (or `/Edit Redo`) re-applies them in order.
-8. **Given** an undone step, **When** the user makes a new edit, **Then** the redo history is discarded.
-9. **Given** nothing to undo, **When** the user requests Undo, **Then** nothing changes and the status bar says there is nothing to undo.
+5. **Given** `B1` contains `=A1*2`, **When** the user runs `/Range Copy` with source `B1` and destination `B2:B5`, **Then** `B2` to `B5` contain `=A2*2` to `=A5*2` (the source tiles to fill the destination, FR-019).
+6. **Given** a copy of formulas, **Then** relative references shift by the copy offset, references marked absolute with `$` (for example `$A$1`, `A$1`, `$A1`) keep their absolute parts, and any reference shifted outside the grid becomes `#REF!`.
+7. **Given** `/Range Move` from `A1:A2` to `C1`, **Then** the contents are relocated, the moved formulas keep pointing at the same cells they referred to before, and formulas elsewhere that referred to the moved cells now refer to their new location. A formula that referred to a destination cell that was overwritten shows `#REF!`.
+8. **Given** a sequence of at least 5 mutating commands, **When** the user presses `Ctrl+Z` (or runs `/Edit Undo`) repeatedly, **Then** each step is reverted in reverse order, and all dependent values recalculate to their earlier results. `Ctrl+Y` (or `/Edit Redo`) re-applies them in order.
+9. **Given** an undone step, **When** the user makes a new edit, **Then** the redo history is discarded.
+10. **Given** nothing to undo, **When** the user requests Undo, **Then** nothing changes and the status bar says there is nothing to undo.
 
 ---
 
@@ -186,7 +201,7 @@ A person on a server runs Proto123 in their terminal: a desktop terminal emulato
 - **Out-of-grid references**: A typed reference beyond the grid limits (for example `XFE1` or row 1048577) is rejected as `#REF!` (or as a syntax error when it cannot be read as a reference at all). It is never silently clamped.
 - **Cycles**: Self-references (`=A1` in `A1`), long cycles (`A1→A2→…→A500→A1`), and cycles inside ranges (`A5` = `=SUM(A1:A10)`) are all detected and shown as `#CIRC!` without unbounded recursion. Cells that depend on a cycle show `#CIRC!` too.
 - **Deep chains**: A chain of 10,000 cells, each referencing the previous one, recalculates correctly without stack exhaustion.
-- **Wide content**: A label longer than its column spills over empty neighbors to the right and is cut off at the first non-empty neighbor. A number too wide for its column shows a full-width overflow marker instead of truncated digits.
+- **Wide content**: A label longer than its column spills over empty neighbors to the right and is cut off at the first non-empty neighbor. A number too wide for its column is rounded or shown in scientific form (FR-006); if even that does not fit, it shows the `#` overflow marker filling the column, never truncated digits.
 - **Numbers**: Results that are not finite (overflow to infinity, or not-a-number) show as `#VALUE!` (or `#DIV/0!` for division by zero) and never as `inf` or `NaN`. `-0` displays as `0`.
 - **Aggregates over nothing**: `COUNT` of a range with no numbers is 0. `SUM` is 0. `MIN`/`MAX` are 0. `AVERAGE` is `#DIV/0!`.
 - **Mixed ranges**: Aggregates skip text, empty, and boolean cells in referenced ranges. An error inside a referenced range spreads to the aggregate.
@@ -207,9 +222,9 @@ A person on a server runs Proto123 in their terminal: a desktop terminal emulato
 - **FR-001**: The workbook MUST hold one worksheet with addressable cells from `A1` to `XFD1048576` (16,384 columns × 1,048,576 rows). Storage and processing cost MUST grow with the number of populated cells, not with the grid size.
 - **FR-002**: Cell addresses MUST be readable and writable in A1 notation, with optional `$` absolute markers on the column and/or row. Column letters are not case-sensitive on input and are always shown in upper case.
 - **FR-003**: Every cell value MUST be one of: Empty, Number, Text, Boolean, or Error. Error kinds are `#DIV/0!`, `#REF!`, `#NAME?`, `#VALUE!`, and `#CIRC!`.
-- **FR-004**: An entry that parses entirely as a number MUST be stored as a Number. An entry starting with `=`, `+`, `-`, `.`, `(`, `@`, or a digit that is not a plain number MUST be treated as a formula (`@` is the At-Prefix Shorthand for functions). Any other entry MUST be stored as Text.
+- **FR-004**: An entry that parses entirely as a plain number MUST be stored as a Number. A plain number is, after trimming surrounding spaces, an optional `+` or `-` sign, one or more digits with at most one decimal point (`5`, `5.`, `.5`, `-12.75`), and an optional exponent `E` or `e` with an optional sign and one or more digits (`1.5E-3`). Thousands separators, percent signs, and currency symbols are not part of a plain number in this slice. An entry starting with `=`, `+`, `-`, `.`, `(`, `@`, or a digit that is not a plain number MUST be treated as a formula (`@` is the At-Prefix Shorthand for functions). Any other entry MUST be stored as Text.
 - **FR-005**: A label prefix `'`, `"`, or `^` MUST set left, right, or center alignment. The prefix is shown in the formula bar but not in the grid. Labels without a prefix are left-aligned. Numbers are right-aligned.
-- **FR-006**: Numbers MUST display in a general format that shows full precision up to the column width and switches to a compact form or the overflow marker when the number does not fit.
+- **FR-006**: Numbers MUST display in a general format within the column width, using the first of these that fits: (1) the value rounded to 15 significant digits, written without trailing zeros; (2) that form with decimals rounded to fit (`1/3` → `0.3333333`); (3) scientific form `d.dddE±XX` with as many mantissa digits as fit and trailing zeros dropped (`123456789012` → `1.235E+11`, `0.0000000012` → `1.2E-09`, while `0.000001234` → `0.0000012` at step 2), used when the integer part does not fit or a nonzero value would round to `0`; (4) the overflow marker, which fills the column with `#`. Rounding is half away from zero and affects display only: the stored value keeps full precision. No displayed number, in the grid, the formula bar, or the live region, ever shows more than 15 significant digits.
 
 **Formulas and calculation**
 
@@ -221,27 +236,27 @@ A person on a server runs Proto123 in their terminal: a desktop terminal emulato
 - **FR-012**: The formula bar MUST show formulas in a canonical form with a leading `=`. A formula entered with `+` or `@` is shown in that canonical form after commit, and its result is unchanged.
 - **FR-013**: The system MUST track which cells each formula depends on. A commit MUST recalculate only the changed cell and the cells that depend on it, directly or indirectly, each exactly once and after the cells it depends on. Unrelated cells MUST NOT be re-evaluated.
 - **FR-014**: Circular references MUST be detected on every change. Every cell in a cycle, and every cell that depends on one, MUST show `#CIRC!`. Breaking the cycle MUST restore correct values. Detection MUST terminate on cycles of any length.
-- **FR-015**: A formula that cannot be parsed MUST NOT be committed. The session MUST stay in edit with a status-bar diagnostic that points at the problem position, and `Esc` MUST abandon the entry.
+- **FR-015**: A formula that cannot be parsed MUST NOT be committed. The session MUST stay in edit with a status-bar diagnostic that points at the problem position, and `Esc` MUST abandon the entry. When the entry did not start with `=`, `+`, or `@` (for example `123 Main St` or `1,000`), the diagnostic MUST also say that starting the entry with `'` stores it as text.
 
 **Commands, modes, and undo**
 
 - **FR-016**: Every change to workbook or session state MUST go through a registered, named command. Keyboard shortcuts, menu entries, and mouse gestures for the same action MUST run the same command.
 - **FR-017**: The session MUST always be in exactly one of `READY`, `VALUE`, `LABEL`, `EDIT`, `POINT`, `MENU`, or `DIALOG` (`DIALOG` is used by the File New confirmation and the Copy/Move range prompts). The current mode MUST be shown as an uppercase text badge on the control line. Transitions MUST follow `docs/interaction-spec.md` §2.
 - **FR-018**: Cell edits, Range Erase, Range Copy, and Range Move MUST each be recorded as one reversible step. The user MUST be able to undo and redo at least 100 steps in order. A new mutating command after an undo MUST discard the redo history. Navigation, selection, menu use, and theme changes MUST NOT create undo steps.
-- **FR-019**: Range Copy MUST copy raw content and alignment, shifting relative references by the offset and keeping absolute parts. Any reference that would fall outside the grid MUST become `#REF!`.
+- **FR-019**: Range Copy MUST copy raw content and alignment, shifting relative references by the offset and keeping absolute parts. Any reference that would fall outside the grid MUST become `#REF!`. When the destination range is at least as large as the source along a dimension, the source MUST repeat along that dimension as many whole times as fit (a 1×3 source into `B1:B10` fills `B1:B9`; a single cell into `B1:B10` fills all ten), each copy shifting references by its own offset. Along a dimension where the destination is smaller than the source, or when the destination is a single cell, the source is pasted once, anchored at the destination's top-left cell. The whole copy is one undo step.
 - **FR-020**: Range Move MUST relocate content without changing the targets of the moved formulas. It MUST redirect references elsewhere that pointed at the moved cells to their new location. References to destination cells that were overwritten MUST become `#REF!`.
 - **FR-021**: Copy and Move MUST give correct results when the source and destination ranges overlap.
 - **FR-022**: File New MUST ask for confirmation when the workbook has content (with cancel as the default). After confirmation it MUST reset to an empty workbook and clear the undo and redo history.
 
 **Keyboard**
 
-- **FR-023**: Every feature in this slice MUST be fully operable from the keyboard with no focus traps. This includes the navigation keys of User Story 1, `Shift+Arrow` and `F8` extend mode for ranges, `F2` to edit, `Delete` to erase, `/` for the menu, `Esc` to cancel or step back, `Ctrl+Z`/`Ctrl+Y` for undo and redo, and arrow-key pointing in `POINT` mode (with `F8` to extend the live reference to a range).
+- **FR-023**: Every feature in this slice MUST be fully operable from the keyboard with no focus traps. This includes the navigation keys of User Story 1, `Shift+Arrow` and `F8` extend mode for ranges, `F2` to edit, `Delete` to erase, `/` for the menu, `Esc` to cancel or step back, `Ctrl+Z`/`Ctrl+Y` for undo and redo, and arrow-key pointing in `POINT` mode (with `F8` to extend the live reference to a range). In `VALUE` and `LABEL`, an arrow key that does not start pointing (FR-029) MUST commit the entry and move the active cell one step in that direction. In `EDIT`, `Left`/`Right` MUST move the caret, `Home`/`End` MUST move it to the start or end of the buffer, and `Up`/`Down` MUST commit and move. A commit by arrow key follows FR-015 when the entry cannot be parsed. `docs/interaction-spec.md` §3 MUST be updated to list these bindings.
 - **FR-024**: Every command bound to a key combination that some environments do not report (for example `Shift+Arrow` or `Ctrl+` combinations) MUST also be reachable through the Slash Command Bar or through an unmodified-key alternative such as `F8`.
 
 **Slash Command Bar**
 
 - **FR-025**: The Slash Command Bar MUST occupy two lines. The first line lists the items of the current level with the highlighted or hovered item marked. The second line shows that item's description or a preview of its submenu. In `READY`, a clickable root bar MUST stay visible.
-- **FR-026**: The menu tree in this slice MUST be exactly: `File → New`; `Edit → Undo, Redo`; `Range → Erase, Copy, Move`; `View → Theme`. Each label MUST have a unique first letter within its level, and each leaf MUST run a registered command.
+- **FR-026**: The menu tree in this slice MUST be exactly: `File → New`; `Edit → Undo, Redo`; `Range → Erase, Copy, Move`; `View → Theme`. Each label MUST have a unique first letter within its level, and each leaf MUST run a registered command. `Range → Copy` and `Range → Move` are prompt-based (source range, then destination; FR-019, FR-020). This slice has no clipboard commands and no `Ctrl+C`/`Ctrl+X`/`Ctrl+V` bindings.
 - **FR-027**: All menu text and all other user-facing strings MUST come from a central English string catalog.
 
 **Mouse**
@@ -329,9 +344,10 @@ A person on a server runs Proto123 in their terminal: a desktop terminal emulato
 - **Grid limits** follow the common modern spreadsheet size (16,384 × 1,048,576), so later `.ods` and `.xlsx` import does not need to clip.
 - **Default column width** is 9 characters. Column widths cannot be changed in this slice.
 - **Operator semantics** follow OpenFormula (not older classic-spreadsheet precedence), so the formulas survive the `.ods` round-trip in Spec 002 unchanged. The `@` prefix is input shorthand only.
+- **Number representation**: numbers are IEEE-754 double-precision values, the same model other ODF suites use, so a workbook calculates the same after the `.ods` round-trip in Spec 002. Decimal (BigDecimal-style) arithmetic was rejected for the core: it breaks that parity, cannot represent results such as `2^0.5` or `1/3` exactly anyway, and costs speed and bundle size. A dedicated exact decimal type (for example for currency) may come in a later spec. Binary rounding artifacts are hidden by the 15-significant-digit display cap (FR-006).
 - **Booleans** come only from the `TRUE` and `FALSE` formula literals in this slice. Comparison operators and logical functions are deferred.
 - **Undo depth** of at least 100 steps is enough for an in-memory session. History is lost when the page reloads, because persistence is deferred.
-- **Menu placement**: In this slice, Copy and Move are under `Range`, as the feature request asks. `docs/interaction-spec.md` §5 and `docs/feature-names.md` §4 currently list them under `Edit`. Those documents MUST be updated to match in the same change that implements this spec (or the tree changed back by decision).
+- **Menu placement** (clarified 2026-11-25): Copy and Move are prompt-based commands under `Range`, as the feature request asks. `docs/interaction-spec.md` §5 and §3 (which list them under `Edit` as a clipboard cut/paste pair bound to `Ctrl+C`/`Ctrl+X`/`Ctrl+V`) and `docs/feature-names.md` §4 MUST be updated to match in the same change that implements this spec. Clipboard-style commands are deferred.
 - **Renderer choice**: How the shared layout is painted on the web is a planning decision. The constitution's default is the shared layout drawn by a canvas backend. A custom painter is allowed only if the plan shows the default cannot meet the 16 ms budget.
 - **Copy/Move prompts** use the `DIALOG` mode and the canonical token list in `docs/feature-names.md` §3, even though the feature request lists only six modes.
 - **Terminals**: the native app targets common terminal emulators on Linux, macOS, and Windows, plus the Linux virtual console. Native screen size, like the web canvas size, follows the 80×24 baseline. Native file open and save, the HTTP features, and system clipboard support (OSC 52) are deferred along with all other I/O.
