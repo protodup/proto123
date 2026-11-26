@@ -110,3 +110,5 @@ The repository is structured as a strictly unidirectional layered Rust workspace
 ## Clean-Room Policy & License
 
 **Proto123** is developed strictly as a clean-room implementation against public open standards (**OASIS ODF 1.3 / ISO/IEC 26300** and **RFC 4180**). See [`AGENTS.md`](AGENTS.md) and [`ATTRIBUTION.md`](ATTRIBUTION.md) for license and provenance requirements.
+
+The document structure and architecture of this project were inspired by [storytold/photocraft](https://github.com/storytold/photocraft).
